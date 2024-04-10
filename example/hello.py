@@ -25,7 +25,6 @@ hello_path = '/hello'
 hello_str = b'Hello World!\n'
 bye_path = '/bye'
 bye_str = b'Goodbye!\n'
-# meaningless comment
 
 class MyStat(fuse.Stat):
     def __init__(self):
