@@ -103,6 +103,17 @@ class HelloFS(Fuse):
         # Success
         return 0
 
+    def unlink(self, path):
+        # Check if path exists
+        if path not in files:
+            return -errno.ENOENT
+
+        # Delete the file object from the dictionary
+        del files[path]
+
+        # Success
+        return 0
+    
 def main():
     usage="""
 Userspace hello example
