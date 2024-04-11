@@ -21,10 +21,15 @@ if not hasattr(fuse, '__version__'):
 
 fuse.fuse_python_api = (0, 2)
 
-hello_path = '/hello'
-hello_str = b'Hello World!\n'
-bye_path = '/bye'
-bye_str = b'Goodbye!\n'
+class File:
+    def __init__(self, name, content):
+        self.name = name
+        self.content = content
+
+# Create a dictionary and store File objects with path as key
+files = {}
+files["/hello"] = File("hello", b'Hello World!\n')
+files["/bye"] = File("bye", b'Goodbye!\n')
 
 class MyStat(fuse.Stat):
     def __init__(self):
@@ -46,44 +51,35 @@ class HelloFS(Fuse):
         if path == '/':
             st.st_mode = stat.S_IFDIR | 0o755
             st.st_nlink = 2
-        elif path == hello_path:
+        elif path in files:  # Check for path in dictionary
             st.st_mode = stat.S_IFREG | 0o444
             st.st_nlink = 1
-            st.st_size = len(hello_str)
-        elif path == bye_path:
-            st.st_mode = stat.S_IFREG | 0o444
-            st.st_nlink = 1
-            st.st_size = len(bye_str)
+            st.st_size = len(files[path].content)
         else:
             return -errno.ENOENT
         return st
 
     def readdir(self, path, offset):
-        for r in  '.', '..', hello_path[1:], bye_path[1:]:
+        for r in  '.', '..', *map(os.path.basename, files.keys()):
             yield fuse.Direntry(r)
 
     def open(self, path, flags):
-        if not (path == hello_path or path == bye_path):
+        if path not in files:
             return -errno.ENOENT
-        accmode = os.O_RDONLY | os.O_WRONLY | os.O_RDWR
-        if (flags & accmode) != os.O_RDONLY:
+        if (flags & os.O_RDONLY) != os.O_RDONLY:
             return -errno.EACCES
+        return 0
+
 
     def read(self, path, size, offset):
-        if not (path == hello_path or path == bye_path):
+        if path not in files:
             return -errno.ENOENT
-        if path == hello_path:
-            slen = len(hello_str)
-            if offset < slen:
-                if offset + size > slen:
-                    size = slen - offset
-                buf = hello_str[offset:offset+size]
-        elif path == bye_path:
-            slen = len(bye_str)
-            if offset < slen:
-                if offset + size > slen:
-                    size = slen - offset
-                buf = bye_str[offset:offset+size]
+        f = files[path]  # Get matching file object from dictionary
+        slen = len(f.content)
+        if offset < slen:
+            if offset + size > slen:
+                size = slen - offset
+            buf = f.content[offset:offset+size]
         else:
             buf = b''
         return buf
