@@ -84,6 +84,25 @@ class HelloFS(Fuse):
             buf = b''
         return buf
 
+    def rename(self, old, new):
+        # Check if old path exists
+        if old not in files:
+            return -errno.ENOENT
+
+        # Check if new path already exists
+        if new in files:
+            return -errno.EEXIST
+
+        # Get the File object from old path
+        f = files[old]
+
+        # Update the dictionary with new path as key and old value
+        files[new] = f
+        del files[old]
+
+        # Success
+        return 0
+
 def main():
     usage="""
 Userspace hello example
