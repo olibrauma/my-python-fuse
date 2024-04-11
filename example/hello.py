@@ -60,7 +60,7 @@ class HelloFS(Fuse):
         return st
 
     def readdir(self, path, offset):
-        for r in  '.', '..', *map(os.path.basename, files.keys()):
+        for r in  '.', '..', *[f.name for f in files.values()]:
             yield fuse.Direntry(r)
 
     def open(self, path, flags):
