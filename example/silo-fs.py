@@ -28,6 +28,11 @@ class File:
         self.content = content
 
 # Create a dictionary and store File objects with path as key
+web = silo.get_json("/")
+pprint.pprint(web)
+
+# files 
+
 files = {}
 files["/hello"] = File("hello", b'Hello World!\n')
 files["/bye"] = File("bye", b'Goodbye!\n')
