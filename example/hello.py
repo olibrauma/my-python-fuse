@@ -14,7 +14,8 @@ except ImportError:
     pass
 import fuse
 from fuse import Fuse
-
+import silo
+import pprint
 
 if not hasattr(fuse, '__version__'):
     raise RuntimeError("your fuse-py doesn't know of fuse.__version__, probably it's too old.")
@@ -27,6 +28,9 @@ class File:
         self.content = content
 
 # Create a dictionary and store File objects with path as key
+web = silo.get_json("/")
+pprint.pprint(web)
+
 files = {}
 files["/hello"] = File("hello", b'Hello World!\n')
 files["/bye"] = File("bye", b'Goodbye!\n')
