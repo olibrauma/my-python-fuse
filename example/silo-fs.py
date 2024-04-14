@@ -15,6 +15,7 @@ except ImportError:
 import fuse
 from fuse import Fuse
 import silo
+from datetime import datetime
 
 if not hasattr(fuse, '__version__'):
     raise RuntimeError("your fuse-py doesn't know of fuse.__version__, probably it's too old.")
@@ -67,6 +68,8 @@ class HelloFS(Fuse):
             st.st_mode = stat.S_IFREG | 0o444
             st.st_nlink = 1
             st.st_size = int(file['contentLength'])
+            st.st_mtime = float(file['lastModifiedTime']) / 1000
+            st.st_ctime = float(file['createdTime']) / 1000
         else:
             return -errno.ENOENT
         return st
