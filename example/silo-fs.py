@@ -80,22 +80,30 @@ class HelloFS(Fuse):
             yield fuse.Direntry(r)
 
     def open(self, path, flags):
-        if path != hello_path:
+        if path == hello_path:
+            return 0
+        elif path not in [f['filePath'] for f in files]:
             return -errno.ENOENT
-        accmode = os.O_RDONLY | os.O_WRONLY | os.O_RDWR
-        if (flags & accmode) != os.O_RDONLY:
+        if (flags & os.O_RDONLY) != os.O_RDONLY:
             return -errno.EACCES
+        return 0
 
     def read(self, path, size, offset):
-        if path != hello_path:
-            return -errno.ENOENT
-        slen = len(hello_str)
-        if offset < slen:
-            if offset + size > slen:
-                size = slen - offset
-            buf = hello_str[offset:offset+size]
+        if path == hello_path:
+            slen = len(hello_str)
+            if offset < slen:
+                if offset + size > slen:
+                    size = slen - offset
+                buf = hello_str[offset:offset+size]
+        elif path in [f['filePath'] for f in files]:
+            # 対象のファイルを取得
+            print('### read() is called! path is ' + path)
+            buf = silo.get_file(path)
+            print("### Buf's type is :")
+            print(type(buf))
         else:
             buf = b''
+
         return buf
 
 def main():
