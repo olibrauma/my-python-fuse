@@ -15,7 +15,6 @@ except ImportError:
 import fuse
 from fuse import Fuse
 import silo
-import pprint
 
 if not hasattr(fuse, '__version__'):
     raise RuntimeError("your fuse-py doesn't know of fuse.__version__, probably it's too old.")
@@ -23,8 +22,9 @@ if not hasattr(fuse, '__version__'):
 fuse.fuse_python_api = (0, 2)
 
 # Create a dictionary and store File objects with path as key
-web = silo.get_json("/")
-pprint.pprint(web)
+# arg is the relative path from the mounted root dir
+# The mount root dir's path is '/'
+files = silo.get_json("/")
 
 hello_path = '/hello'
 hello_str = b'Hello World!\n'
@@ -45,6 +45,7 @@ class MyStat(fuse.Stat):
 class HelloFS(Fuse):
 
     def getattr(self, path):
+        print('### getattr() is called. Arg is ' + path)
         st = MyStat()
         if path == '/':
             st.st_mode = stat.S_IFDIR | 0o755
@@ -53,12 +54,21 @@ class HelloFS(Fuse):
             st.st_mode = stat.S_IFREG | 0o444
             st.st_nlink = 1
             st.st_size = len(hello_str)
+        elif path in [f['filePath'] for f in files]:
+            file = next((files for f in files if f['filePath'] == path), None)
+            file = file[0]
+            print('### Here "file" is:')
+            print(file)
+            st.st_mode = stat.S_IFREG | 0o444
+            st.st_nlink = 1
+            st.st_size = int(file['contentLength'])
         else:
             return -errno.ENOENT
         return st
 
     def readdir(self, path, offset):
-        for r in  '.', '..', hello_path[1:]:
+        for r in  '.', '..', 'hello', *[f["filename"] for f in files]:
+            print('### readdir() is called. Direntry for ' + r)
             yield fuse.Direntry(r)
 
     def open(self, path, flags):

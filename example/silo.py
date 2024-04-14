@@ -30,7 +30,13 @@ def get_json(path):
     try:
         response = requests.get(url)
         if response.status_code == 200:
-            return json.loads(response.text)
+            data = json.loads(response.text)
+            for d in data:
+               # print('### get_json() is called. FilePath is ' + d['filePath'])
+               d['filePath'] = d['filePath'][6:]
+               print('### get_json() called! Response is:')
+               print(data)
+            return data
         else:
             print(f"Error: HTTP status code {response.status_code}")
             return None
