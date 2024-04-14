@@ -55,8 +55,13 @@ class HelloFS(Fuse):
             st.st_nlink = 1
             st.st_size = len(hello_str)
         elif path in [f['filePath'] for f in files]:
-            file = next((files for f in files if f['filePath'] == path), None)
-            file = file[0]
+            # 対象のファイル名を取得
+            file = None
+            for f in files:
+                if f["filePath"] == path:
+                    file = f
+                    break
+
             print('### Here "file" is:')
             print(file)
             st.st_mode = stat.S_IFREG | 0o444
