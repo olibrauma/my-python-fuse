@@ -46,7 +46,7 @@ class MyStat(fuse.Stat):
 class HelloFS(Fuse):
 
     def getattr(self, path):
-        print('### getattr() is called. Arg is ' + path)
+        print('### getattr() is called. Path is ' + path)
         st = MyStat()
         if path == '/':
             st.st_mode = stat.S_IFDIR | 0o755
@@ -97,10 +97,15 @@ class HelloFS(Fuse):
                 buf = hello_str[offset:offset+size]
         elif path in [f['filePath'] for f in files]:
             # 対象のファイルを取得
-            print('### read() is called! path is ' + path)
+            print(f'### read() is called (1)! path is {path}, size is {size}, offset is {offset}')
             buf = silo.get_file(path)
-            print("### Buf's type is :")
-            print(type(buf))
+            slen = len(buf)
+            if offset < slen:
+                if offset + size > slen:
+                    size = slen - offset
+                buf = buf[offset:offset+size]
+            print(f'### read() is called (2)! path is {path}, size is {size}, offset is {offset}')
+            print(f"### Buf's type is {type(buf)}, length is {len(buf)}")
         else:
             buf = b''
 

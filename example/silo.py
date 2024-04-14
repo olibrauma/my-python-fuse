@@ -71,8 +71,8 @@ def get_file(path):
     try:
         response = requests.get(url)
         if response.status_code == 200:
-            print('### get_file() is called! res is :')
-            print(response)
+            print(f'### get_file() is called! Path is {path}')
+            print(f'### get_file() called! Header Content-type is {response.headers['Content-Type']}')
             return response.content
         else:
             print(f"Error: HTTP status code {response.status_code}")
