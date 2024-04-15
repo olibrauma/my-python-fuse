@@ -111,6 +111,18 @@ class HelloFS(Fuse):
 
         return buf
 
+    def unlink(self, path):
+        print(f"### unlink() is called! Path is {path}.")
+        # Check if path exists
+        if path not in [f['filePath'] for f in files]:
+            return -errno.ENOENT
+        # Delete the file object from `files`
+        elif silo.delete_file(path) != 0:
+            return -errno.ENOENT
+        else:
+            # Success
+            return 0
+
 def main():
     usage="""
 Userspace hello example
