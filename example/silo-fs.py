@@ -14,7 +14,7 @@ except ImportError:
     pass
 import fuse
 from fuse import Fuse
-import silo
+from silo import Silo
 from datetime import datetime
 
 if not hasattr(fuse, '__version__'):
@@ -25,6 +25,7 @@ fuse.fuse_python_api = (0, 2)
 # Create a dictionary and store File objects with path as key
 # arg is the relative path from the mounted root dir
 # The mount root dir's path is '/'
+silo = Silo()
 files = silo.get_json("/")
 
 hello_path = '/hello'
