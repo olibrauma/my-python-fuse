@@ -2,17 +2,16 @@ import requests
 import json
 import pathlib
 
+CONFIG_PATH = pathlib.Path("~/.config/silo/config.json").expanduser()
+
 class Silo:
     def __init__(self):
-        # 設定ファイルパスを指定
-        config_path = pathlib.Path("~/.config/silo/config.json").expanduser()
-
         # ファイルを読み込む
         try:
-            with open(config_path, "r") as f:
+            with open(CONFIG_PATH, "r") as f:
                 self.config = json.load(f)
         except FileNotFoundError:
-            print("Silo 設定ファイルが見つかりません: ~/.config/silo/config.json")
+            print(f"Silo 設定ファイルが見つかりません: {CONFIG_PATH}")
             exit(1)
 
         # "endpoint" キーの値を取得
