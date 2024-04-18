@@ -25,8 +25,8 @@ fuse.fuse_python_api = (0, 2)
 # Create a dictionary and store File objects with path as key
 # arg is the relative path from the mounted root dir
 # The mount root dir's path is '/'
-SiloAPIClient = SiloAPIClient()
-files = SiloAPIClient.get_json("/")
+silo_api_client = SiloAPIClient()
+files = silo_api_client.get_json("/")
 
 hello_path = '/hello'
 hello_str = b'Hello World!\n'
@@ -98,7 +98,7 @@ class HelloFS(Fuse):
         elif path in [f['filePath'] for f in files]:
             # 対象のファイルを取得
             print(f'### read() is called (1)! path is {path}, size is {size}, offset is {offset}')
-            buf = SiloAPIClient.get_file(path)
+            buf = silo_api_client.get_file(path)
             slen = len(buf)
             if offset < slen:
                 if offset + size > slen:
@@ -117,7 +117,7 @@ class HelloFS(Fuse):
         if path not in [f['filePath'] for f in files]:
             return -errno.ENOENT
         # Delete the file object from `files`
-        elif SiloAPIClient.delete_file(path) != 0:
+        elif silo_api_client.delete_file(path) != 0:
             return -errno.ENOENT
         else:
             # Success
