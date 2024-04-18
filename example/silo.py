@@ -15,18 +15,18 @@ class Silo:
             print("Silo 設定ファイルが見つかりません: ~/.config/silo/config.json")
             exit(1)
 
-        # "url" キーの値を取得
-        if self.config.get("url") is None:
-            print("Silo 設定ファイルに 'url' キーが見つかりません")
+        # "endpoint" キーの値を取得
+        if self.config.get("endpoint") is None:
+            print("Silo 設定ファイルに 'endpoint' キーが見つかりません")
             exit(1)
         else:
-            self.url = self.config.get("url")
+            self.endpoint = self.config.get("endpoint")
 
 
     def _build_url(self, path):
         # path の先頭の '/' を削除
         path = path.lstrip('/')
-        return f"{self.url}/{path}"
+        return f"{self.endpoint}/{path}"
 
     def get_json(self, path):
         url = self._build_url(path)
