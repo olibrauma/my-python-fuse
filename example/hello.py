@@ -14,7 +14,7 @@ except ImportError:
     pass
 import fuse
 from fuse import Fuse
-import silo
+import example.silo_api_client as silo_api_client
 import pprint
 
 if not hasattr(fuse, '__version__'):
