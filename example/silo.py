@@ -144,18 +144,6 @@ class HelloFS(Fuse):
             # Success
             return -errno.EAGAIN
 
-    '''
-    def mknod(self, path, mode, dev):
-        # dev は、デバイスならデバイス ID、ファイルなら 0
-        print(f"mknod() is called! path is {path}, mode is {mode}")
-        try:
-            files.append({"filePath":path,"isDirectory":False, "filename":"bbq-clock.jpg"})
-        except OSError as e:
-            if e.errno == errno.ENOENT:
-                raise OSError(errno.ENOENT, "No such file or directory: %s" % path)
-            else:
-                raise
-    '''
     def create(self, path, mistery, mode):
         
         filename = f"{path.split("/")[-1]}"
