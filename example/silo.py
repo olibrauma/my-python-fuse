@@ -55,8 +55,7 @@ class HelloFS(Fuse):
 
 
     def getattr(self, path):
-        print(f'### getattr() is called. Path: {path}')
-        print(f"### get_attr() is called. files: {self.files}")
+        print(f'### getattr() is called. Path: {path}, files: {self.files}')
         st = MyStat()
         if path == '/':
             st.st_mode = stat.S_IFDIR | 0o755
@@ -68,39 +67,13 @@ class HelloFS(Fuse):
                 if f["filePath"] == path:
                     file = f
                     break
-            if int(file['contentLength']) > 0:
-                print(f'### Here "file" is {file}')
-                st.st_mode = stat.S_IFREG | 0o444
-                st.st_nlink = 1
-                st.st_size = int(file['contentLength'])
-                st.st_mtime = float(file['lastModifiedTime']) / 1000
-                #st.st_ctime = float(file['createdTime']) / 1000
-            elif len(self.writing) > 0: # writing に data が入ってるなら PUT する
-                print(f"### getattr() for a new file! path: {path}, len(writing): {len(self.writing)}")
-                # まずデータをアップロード
-                silo_api_client.write_file(path, self.writing, "image/jpg")
-                 # writing を初期化
-                self.writing = b""
-                # アップロードしたデータを改めて取得
-                headers = silo_api_client.get_file(path, True)
-                print(f"### get_file() done. headers: {headers}")
-                # file を更新
-                file['contentLength'] = headers['Content-Length']
-                dt_str = headers['Last-Modified']
-                dt = dateutil.parser.parse(dt_str)
-                dt_timestamp = dt.timestamp()
-                #file['lastModifiedTime'] = .timestamp
-                print(f"### file updated in getattr(). dt_str: {dt_str}, dt: {dt}, dt_timestamp: {dt_timestamp}")
-
-                # st を更新
-                st.st_mode = stat.S_IFREG | 0o444
-                st.st_nlink = 1
-                st.st_size = int(file['contentLength'])
-                st.st_mtime = int(dt_timestamp)
-            else: # writing が空なら何もしない
-                print(f"### getattr() for a new file but no content found in args")
-                st.st_mode = stat.S_IFREG | 0o444
-                st.st_nlink = 1
+                
+            print(f'### Here "file" is {file}')
+            st.st_mode = stat.S_IFREG | 0o444
+            st.st_nlink = 1
+            st.st_size = int(file['contentLength'])
+            st.st_mtime = float(file['lastModifiedTime']) / 1000
+            st.st_ctime = float(file['createdTime']) / 1000
         else:
             return -errno.ENOENT
         return st
@@ -170,6 +143,32 @@ class HelloFS(Fuse):
         self.writing += buf 
         print(f'### writing is {len(self.writing)}')
         return len(buf)
+    
+    def flush(self, path):
+        print(f"### flush() is called! path: {path}, len(writing): {len(self.writing)}")
+        # まずデータをアップロード
+        silo_api_client.write_file(path, self.writing, "image/jpg")
+        # writing を初期化
+        self.writing = b""
+        # アップロードしたデータを改めて取得
+        headers = silo_api_client.get_file(path, True)
+        print(f"### get_file() done. headers: {headers}")
+        # file を更新
+        # 対象のファイル名を取得
+        file = None
+        for f in self.files:
+            if f["filePath"] == path:
+                file = f
+                break
+        file['contentLength'] = headers['Content-Length']
+        file['lastModifiedTime'] = int(dateutil.parser.parse(headers['Last-Modified']).timestamp())
+
+        return 0
+
+    def release(self, path, second):
+        print(f"### release() is called! path: {path}, second: {second}")
+        pass
+
 
 def main():
     usage="""
