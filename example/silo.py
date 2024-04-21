@@ -30,7 +30,6 @@ fuse.fuse_python_api = (0, 2)
 # arg is the relative path from the mounted root dir
 # The mount root dir's path is '/'
 silo_api_client = SiloAPIClient()
-files = silo_api_client.get_json("/")
 
 class MyStat(fuse.Stat):
     def __init__(self):
@@ -48,16 +47,24 @@ class MyStat(fuse.Stat):
 class HelloFS(Fuse):
     writing = b""
 
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+
+        self.files = silo_api_client.get_json("/")
+        print(f"### init() is called! files: {self.files}")
+
+
     def getattr(self, path):
-        print('### getattr() is called. Path is ' + path)
+        print(f'### getattr() is called. Path: {path}')
+        print(f"### get_attr() is called. files: {self.files}")
         st = MyStat()
         if path == '/':
             st.st_mode = stat.S_IFDIR | 0o755
             st.st_nlink = 2
-        elif path in [f['filePath'] for f in files]:
+        elif path in [f['filePath'] for f in self.files]:
             # 対象のファイル名を取得
             file = None
-            for f in files:
+            for f in self.files:
                 if f["filePath"] == path:
                     file = f
                     break
@@ -71,7 +78,7 @@ class HelloFS(Fuse):
             elif len(self.writing) > 0: # writing に data が入ってるなら PUT する
                 print(f"### getattr() for a new file! path: {path}, len(writing): {len(self.writing)}")
                 # まずデータをアップロード
-                silo_api_client.write_file(path, self.writing)
+                silo_api_client.write_file(path, self.writing, "image/jpg")
                  # writing を初期化
                 self.writing = b""
                 # アップロードしたデータを改めて取得
@@ -99,19 +106,19 @@ class HelloFS(Fuse):
         return st
 
     def readdir(self, path, offset):
-        for r in  '.', '..', *[f["filename"] for f in files]:
+        for r in  '.', '..', *[f["filename"] for f in self.files]:
             print(f'### readdir() is called. Direntry for {r}')
             yield fuse.Direntry(r)
 
     def open(self, path, flags):
-        if path not in [f['filePath'] for f in files]:
+        if path not in [f['filePath'] for f in self.files]:
             return -errno.ENOENT
         if (flags & os.O_RDONLY) != os.O_RDONLY:
             return -errno.EACCES
         return 0
 
     def read(self, path, size, offset):
-        if path in [f['filePath'] for f in files]:
+        if path in [f['filePath'] for f in self.files]:
             # 対象のファイルを取得
             print(f'### read() is called (1)! path is {path}, size is {size}, offset is {offset}')
             buf = silo_api_client.get_file(path)
@@ -129,38 +136,33 @@ class HelloFS(Fuse):
     def unlink(self, path):
         print(f"### unlink() is called! Path is {path}.")
         # Check if path exists
-        if path not in [f['filePath'] for f in files]:
+        if path not in [f['filePath'] for f in self.files]:
             return -errno.ENOENT
         # Delete the file object from `files`
         elif silo_api_client.delete_file(path) == 0 or 400:
             # 対象のファイルを files の配列から削除
-            for i, f in enumerate(files):
+            for i, f in enumerate(self.files):
                 if f["filePath"] == path:
-                    del files[i]
+                    del self.files[i]
                     break 
-            print(f"Deleted file not in files > {files}")
+            print(f"Deleted file not in files? > {self.files}")
             return 0
         else:
             # Success
             return -errno.EAGAIN
 
     def create(self, path, mistery, mode):
+        # どんなファイルが書き込まれるかこの時点では不明なので、
+        # デフォルトで "application/octet-stream" を使用
+        mime_type = "application/octet-stream"
+        data = b'' # 空のバイト列を送信
+        silo_api_client.write_file(path, data, mime_type)
         
-        filename = f"{path.split("/")[-1]}"
-        filePath = f"/{path.split("/")[-1]}"
-        print(f"### create() is called! path: {filePath}, mistery: {mistery}, mode: {mode}, filename: {filename}")
+        # files の中身を更新する
+        time.sleep(3) # write_file() 後すぐだと失敗するっぽいので少し待つ
+        self.files = silo_api_client.get_json("/")
+        print(f"### create() is done. files: {self.files}")
 
-        files.append(
-            {
-                "filePath": path,
-                "isDirectory": False, 
-                "filename": filename,
-                "contentLength": 0,
-                "lastModifiedTime": time.time() * 1000,
-                "contentType": "image/jpg"
-            }
-        )
-        print(f"create() is called! files: {files}")
         return 0
 
     def write(self, path, buf, offset):

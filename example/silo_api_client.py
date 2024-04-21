@@ -86,12 +86,11 @@ class SiloAPIClient:
             print(f"Error: {e}")
             return None
 
-    def write_file(self, path, data):
+    def write_file(self, path, data, mime_type):
         url = self._build_url(path)
         print(f'### write_file() is called! Path: {url}, len(data): {len(data)}')
 
-        content_type = "image/jpg"
-        headers = {'Content-type': content_type}
+        headers = {'Content-type': mime_type}
 
         try:
             response = requests.put(url, data=data, headers=headers)
