@@ -61,6 +61,7 @@ class HelloFS(Fuse):
             st.st_mode = stat.S_IFDIR | 0o755
             st.st_nlink = 2
         elif path in [f['filePath'] for f in self.files]:
+            print(f'### getattr() for which `files` know')
             # 対象のファイル名を取得
             file = None
             for f in self.files:
@@ -146,23 +147,19 @@ class HelloFS(Fuse):
     
     def flush(self, path):
         print(f"### flush() is called! path: {path}, len(writing): {len(self.writing)}")
-        # まずデータをアップロード
-        silo_api_client.write_file(path, self.writing, "image/jpg")
-        # writing を初期化
-        self.writing = b""
-        # アップロードしたデータを改めて取得
-        headers = silo_api_client.get_file(path, True)
-        print(f"### get_file() done. headers: {headers}")
-        # file を更新
-        # 対象のファイル名を取得
-        file = None
-        for f in self.files:
-            if f["filePath"] == path:
-                file = f
-                break
-        file['contentLength'] = headers['Content-Length']
-        file['lastModifiedTime'] = int(dateutil.parser.parse(headers['Last-Modified']).timestamp())
+        
+        if len(self.writing) == 0:
+            print(f"### flush('{path}'), but nothing done due to len(writing) == {len(self.writing)}")
+            return 0
+        else: # writing が空でなければデータをアップロード
+            print(f"### flush('{path}'), write_file() will be called due to len(writing) != {len(self.writing)}")
+            silo_api_client.write_file(path, self.writing, "image/jpeg")
+            # writing を初期化
+            self.writing = b""
 
+            # アップロードした状態で、改めて files の中身を更新
+            time.sleep(3) # write_file() 後すぐだと失敗するっぽいので少し待つ
+            self.files = silo_api_client.get_json("/")
         return 0
 
     def release(self, path, second):
