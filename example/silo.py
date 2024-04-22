@@ -152,7 +152,7 @@ class HelloFS(Fuse):
             print(f"### flush('{path}'), but nothing done due to len(writing) == {len(self.writing)}")
             return 0
         else: # writing が空でなければデータをアップロード
-            print(f"### flush('{path}'), write_file() will be called due to len(writing) != {len(self.writing)}")
+            print(f"### flush('{path}'), write_file() will be called due to len(writing) == {len(self.writing)} != 0")
             silo_api_client.write_file(path, self.writing, "image/jpeg")
             # writing を初期化
             self.writing = b""
@@ -161,11 +161,6 @@ class HelloFS(Fuse):
             time.sleep(3) # write_file() 後すぐだと失敗するっぽいので少し待つ
             self.files = silo_api_client.get_json("/")
         return 0
-
-    def release(self, path, second):
-        print(f"### release() is called! path: {path}, second: {second}")
-        pass
-
 
 def main():
     usage="""
