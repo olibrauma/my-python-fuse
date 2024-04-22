@@ -9,6 +9,7 @@
 import base64
 import os, stat, errno
 import time
+import magic
 
 import dateutil.parser
 # pull in some spaghetti to make this stuff work without fuse-py being installed
@@ -153,13 +154,18 @@ class HelloFS(Fuse):
             return 0
         else: # writing が空でなければデータをアップロード
             print(f"### flush('{path}'), write_file() will be called due to len(writing) == {len(self.writing)} != 0")
-            silo_api_client.write_file(path, self.writing, "image/jpeg")
+            
+            file_magic = magic.detect_from_content(self.writing)
+            silo_api_client.write_file(path, self.writing, file_magic.mime_type)
             # writing を初期化
             self.writing = b""
 
             # アップロードした状態で、改めて files の中身を更新
             time.sleep(3) # write_file() 後すぐだと失敗するっぽいので少し待つ
             self.files = silo_api_client.get_json("/")
+
+            # キャッシュを無効化
+            super().Invalidate(path)
         return 0
 
 def main():

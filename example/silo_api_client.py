@@ -52,8 +52,6 @@ class SiloAPIClient:
         url = self._build_url(path)
         print(f'### get_file() called! path: {path}, url: {url}')
         
-        time.sleep(3) # write_file() 後すぐだと失敗するっぽいので少し待つ
-
         try:
             response = requests.get(url)
             if response.status_code == 200:
