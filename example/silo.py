@@ -167,6 +167,26 @@ class HelloFS(Fuse):
             # キャッシュを無効化
             super().Invalidate(path)
         return 0
+    
+    def rename(self, path_old, path_new):
+        print(f"### rename() called! path_old: {path_old}, path_new: {path_new}")
+        # Check if old path exists
+        if path_old not in [f['filePath'] for f in self.files]:
+            return -errno.ENOENT
+
+        # Check if new path already exists
+        if path_new in [f['filePath'] for f in self.files]:
+            return -errno.EEXIST
+
+        # Get file at path_old and upload it to path_new
+        self.writing = silo_api_client.get_file(path_old)
+        self.flush(path_new)
+
+        # delete file at path_ole
+        self.unlink(path_old)
+
+        # Success
+        return 0
 
 def main():
     usage="""
