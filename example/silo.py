@@ -7,6 +7,7 @@
 #
 
 import base64
+from functools import reduce
 import os, stat, errno
 import time
 import magic
@@ -64,11 +65,11 @@ class HelloFS(Fuse):
         elif path in [f['filePath'] for f in self.files]:
             print(f'### getattr() for which `files` know')
             # 対象のファイル名を取得
-            file = None
-            for f in self.files:
-                if f["filePath"] == path:
-                    file = f
-                    break
+            file = reduce(
+                lambda acc, f: f if f["filePath"] == path else acc,
+                self.files, 
+                None
+            )
                 
             print(f'### Here "file" is {file}')
             st.st_mode = stat.S_IFREG | 0o444
