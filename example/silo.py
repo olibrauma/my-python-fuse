@@ -65,9 +65,8 @@ class HelloFS(Fuse):
         elif path in [f['filePath'] for f in self.files]:
             print(f'### getattr() for which `files` know')
             # 対象のファイル名を取得
-            file = reduce(
-                lambda acc, f: f if f["filePath"] == path else acc,
-                self.files, 
+            file = next(
+                filter(lambda file: file["filePath"] == path, self.files),
                 None
             )
                 
