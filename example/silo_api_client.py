@@ -37,8 +37,7 @@ class SiloAPIClient:
             response = requests.get(url)
             if response.status_code == 200:
                 data = json.loads(response.text)
-                for d in data:
-                    d['filePath'] = d['filePath'][6:]
+                data = list(map(lambda d: {**d, 'filePath': d['filePath'][6:]}, data))
                 print(f'### get_json() called! Response is {data}')
                 return data
             else:
