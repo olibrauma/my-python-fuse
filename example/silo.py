@@ -53,7 +53,7 @@ class HelloFS(Fuse):
         super().__init__(*args, **kw)
 
         self.files = silo_api_client.get_json("/")
-        print(f"### init() is called! files: {self.files}")
+        print(f"### HelloFS init() is called! files: {self.files}")
 
 
     def getattr(self, path):
@@ -71,11 +71,15 @@ class HelloFS(Fuse):
             )
                 
             print(f'### Here "file" is {file}')
-            st.st_mode = stat.S_IFREG | 0o444
-            st.st_nlink = 1
-            st.st_size = int(file['contentLength'])
-            st.st_mtime = float(file['lastModifiedTime']) / 1000
-            st.st_ctime = float(file['createdTime']) / 1000
+            if file['isDirectory']:
+                st.st_mode = stat.S_IFDIR | 0o755
+                st.st_nlink = 2
+            else:
+                st.st_mode = stat.S_IFREG | 0o444
+                st.st_nlink = 1
+                st.st_size = int(file['contentLength'])
+                st.st_mtime = float(file['lastModifiedTime']) / 1000
+                st.st_ctime = float(file['createdTime']) / 1000
         else:
             return -errno.ENOENT
         return st
@@ -186,6 +190,21 @@ class HelloFS(Fuse):
         self.unlink(path_old)
 
         # Success
+        return 0
+
+    def mkdir(self, path, mode):
+        # ダミー用の空ファイルの中身
+        self.writing = b'Silo blank file'
+        
+        # modified の path に、ダミーの空ファイル '.silo' を作る
+        # 引数の path = '/test' みたいな感じなので
+        # path_mod = '/test/.silo' になるはず
+        path_mod = path + '/.silo'
+        print(f"### mkdir() called! path_mod: {path_mod}")
+
+        self.flush(path_mod)
+
+        # 成功した場合は 0 を返す
         return 0
 
 def main():
