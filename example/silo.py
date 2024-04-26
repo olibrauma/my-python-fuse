@@ -53,11 +53,11 @@ class HelloFS(Fuse):
         super().__init__(*args, **kw)
 
         self.files = silo_api_client.get_json("/")
-        print(f"### HelloFS init() is called! files: {self.files}")
+        print(f"### HelloFS init() called! files: {self.files}")
 
 
     def getattr(self, path):
-        print(f'### getattr() is called. Path: {path}, files: {self.files}')
+        print(f'### getattr() called. Path: {path}, files: {self.files}')
         st = MyStat()
         if path == '/':
             st.st_mode = stat.S_IFDIR | 0o755
@@ -86,7 +86,7 @@ class HelloFS(Fuse):
 
     def readdir(self, path, offset):
         for r in  '.', '..', *[f["filename"] for f in self.files]:
-            print(f'### readdir() is called. Direntry for {r}')
+            print(f'### readdir() called. Direntry for {r}')
             yield fuse.Direntry(r)
 
     def open(self, path, flags):
@@ -99,7 +99,7 @@ class HelloFS(Fuse):
     def read(self, path, size, offset):
         if path in [f['filePath'] for f in self.files]:
             # 対象のファイルを取得
-            print(f'### read() is called (1)! path is {path}, size is {size}, offset is {offset}')
+            print(f'### read() called (1)! path is {path}, size is {size}, offset is {offset}')
             buf = silo_api_client.get_file(path)
             slen = len(buf)
             if offset < slen:
@@ -108,12 +108,12 @@ class HelloFS(Fuse):
                 buf = buf[offset:offset+size]
         else:
             buf = b''
-        print(f'### read() is called (2)! path is {path}, size is {size}, offset is {offset}')
-        print(f"### Buf's type is {type(buf)}, length is {len(buf)}")
+        print(f'### read() called (2)! path: {path}, size: {size}, offset: {offset}')
+        print(f"### Buf's type: {type(buf)}, length: {len(buf)}")
         return buf
 
     def unlink(self, path):
-        print(f"### unlink() is called! Path is {path}.")
+        print(f"### unlink() called! Path: {path}.")
         # Check if path exists
         if path not in [f['filePath'] for f in self.files]:
             return -errno.ENOENT
@@ -140,18 +140,18 @@ class HelloFS(Fuse):
         # files の中身を更新する
         time.sleep(3) # write_file() 後すぐだと失敗するっぽいので少し待つ
         self.files = silo_api_client.get_json("/")
-        print(f"### create() is done. files: {self.files}")
+        print(f"### create() done. files: {self.files}")
 
         return 0
 
     def write(self, path, buf, offset):
-        print(f"### write() is called! path: {path}, type(buf): {type(buf)}, offset: {offset}")
+        print(f"### write() called! path: {path}, type(buf): {type(buf)}, offset: {offset}")
         self.writing += buf 
-        print(f'### writing is {len(self.writing)}')
+        print(f'### writing: {len(self.writing)}')
         return len(buf)
     
     def flush(self, path):
-        print(f"### flush() is called! path: {path}, len(writing): {len(self.writing)}")
+        print(f"### flush() called! path: {path}, len(writing): {len(self.writing)}")
         
         if len(self.writing) == 0:
             print(f"### flush('{path}'), but nothing done due to len(writing) == {len(self.writing)}")

@@ -29,7 +29,7 @@ class SiloAPIClient:
         path = path.lstrip('/')
         return f"{self.endpoint}{path}"
     
-    def _format_files_path(self, files):
+    def _format_files(self, files):
         # files の 'filePath' 要素の先頭 6 字を削除
         files_1 = list(map(lambda f: f | {'filePath': f['filePath'][6:]}, files))
         print(f'### _normalize_files_path() called! files_1: {files_1}')
@@ -41,7 +41,7 @@ class SiloAPIClient:
         files_3 = list(map(lambda f: f | {'filename': f['filename'][:-1]} if f['filename'].endswith('/') else f, files_2))
 
         # debug print
-        print(f'### _format_files_path() called! files_2: {files_3}')
+        print(f'### _format_files() called! files_2: {files_3}')
         return files_3
     
     def get_json(self, path):
@@ -52,7 +52,7 @@ class SiloAPIClient:
             response = requests.get(url)
             if response.status_code == 200:
                 files_raw = json.loads(response.text)
-                files = self._format_files_path(files_raw)
+                files = self._format_files(files_raw)
 
                 print(f'### get_json() called! Response is {files}')
                 return files
