@@ -67,8 +67,7 @@ class SiloAPIClient:
         try:
             response = requests.get(url)
             if response.status_code == 200:
-                print(f'### get_file() is called! Path is {path}')
-                print(f'### get_file() succeede {response.status_code}! Header Content-type: {response.headers["Content-Type"]}')
+                print(f'### get_file() called! Path: {path}, status code: {response.status_code}, Content-type: {response.headers["Content-Type"]}')
                 if headers_wanted:
                     return response.headers
                 else:

@@ -47,6 +47,7 @@ class MyStat(fuse.Stat):
 
 class HelloFS(Fuse):
     writing = b""
+    reading = {}
 
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
@@ -95,14 +96,18 @@ class HelloFS(Fuse):
 
     def read(self, path, size, offset):
         if path in [f['filePath'] for f in self.files]:
+
             # 対象のファイルを取得
-            print(f'### read() called (1)! path is {path}, size is {size}, offset is {offset}')
-            buf = silo_api_client.get_file(path)
-            slen = len(buf)
+            print(f'### read() called (1)! path: {path}, size: {size}, offset: {offset}')
+            
+            if path not in self.reading:
+                    self.reading[path] = silo_api_client.get_file(path)
+
+            slen = len(self.reading[path])
             if offset < slen:
                 if offset + size > slen:
                     size = slen - offset
-                buf = buf[offset:offset+size]
+                buf = self.reading[path][offset:offset+size]
         else:
             buf = b''
         print(f'### read() called (2)! path: {path}, size: {size}, offset: {offset}')
