@@ -81,6 +81,8 @@ class HelloFS(Fuse):
                 print(f'### {path} is a directory. hasFile: {hasFile}')
                 st.st_mode = stat.S_IFDIR | 0o755
                 st.st_nlink = 2
+                st.st_mtime = float(file['lastModifiedTime']) / 1000
+                st.st_ctime = float(file['createdTime']) / 1000
 
                 # もしそのフォルダ内のファイルを持ってないなら読み込む
                 if not hasFile:
