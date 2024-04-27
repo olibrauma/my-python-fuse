@@ -86,8 +86,7 @@ class SiloAPIClient:
         try:
             response = requests.delete(url)
             if response.status_code == 204:
-                print(f'### delete_file() is called! Path is {path}')
-                print(f'### delete_file() called! Status code is {response.status_code}')
+                print(f'### delete_file() called! Path: {path}, Status code: {response.status_code}')
                 return 0
             else:
                 return response.status_code
@@ -97,7 +96,7 @@ class SiloAPIClient:
 
     def write_file(self, path, data, mime_type):
         url = self._build_url(path)
-        print(f'### write_file() is called! Path: {url}, len(data): {len(data)}')
+        print(f'### write_file() called! Path: {url}, len(data): {len(data)}')
 
         headers = {'Content-type': mime_type}
 
