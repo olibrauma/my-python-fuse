@@ -166,7 +166,10 @@ class HelloFS(Fuse):
         
         # files の中身を更新する
         time.sleep(3) # write_file() 後すぐだと失敗するっぽいので少し待つ
-        self.files = silo_api_client.get_json("/")
+
+        # アップロードしたフォルダの path を作る
+        folder_path = path[:path.rfind('/') + 1] if '/' in path else path
+        self.files = silo_api_client.get_json(folder_path)
         print(f"### create() done. files: {self.files}")
 
         return 0
