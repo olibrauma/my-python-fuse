@@ -6,7 +6,6 @@
 #    See the file COPYING.
 #
 
-import base64
 from functools import reduce
 import os, stat, errno
 import time
@@ -57,18 +56,16 @@ class HelloFS(Fuse):
 
 
     def getattr(self, path):
-        print(f'### getattr() called. Path: {path}, files: {self.files}')
         st = MyStat()
+
+        # `/` は files 内に無いので、この `if` は消せない
         if path == '/':
             st.st_mode = stat.S_IFDIR | 0o755
             st.st_nlink = 2
         elif path in [f['filePath'] for f in self.files]:
             print(f'### getattr() for which `files` know')
-            # 対象のファイル名を取得
-            file = next(
-                filter(lambda file: file["filePath"] == path, self.files),
-                None
-            )
+            # 対象のファイルを取得
+            file = next(filter(lambda file: file["filePath"] == path, self.files))
                 
             print(f'### Here "file" is {file}')
             if file['isDirectory']:
@@ -86,7 +83,7 @@ class HelloFS(Fuse):
 
     def readdir(self, path, offset):
         for r in  '.', '..', *[f["filename"] for f in self.files]:
-            print(f'### readdir() called. Direntry for {r}')
+            print(f'### readdir() called. path: {path}, Direntry: {r}')
             yield fuse.Direntry(r)
 
     def open(self, path, flags):
