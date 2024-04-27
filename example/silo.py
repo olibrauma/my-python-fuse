@@ -58,11 +58,14 @@ class HelloFS(Fuse):
 
     def getattr(self, path):
         st = MyStat()
+        print(f'### readdir() called. files: {self.files}')
 
         # `/` は files 内に無いので、この `if` は消せない
         if path == '/':
             st.st_mode = stat.S_IFDIR | 0o755
             st.st_nlink = 2
+
+        # `files` に存在する対象の処理
         elif path in [f['filePath'] for f in self.files]:
             print(f'### getattr() for which `files` know')
             # 対象のファイルを取得
@@ -70,14 +73,29 @@ class HelloFS(Fuse):
                 
             print(f'### Here "file" is {file}')
             if file['isDirectory']:
+                # files からこのフォルダを除いたリストを作る
+                files_filtered = [file for file in self.files if file['filePath'] != path]
+                # このフォルダ内のファイルの情報を持っているか？
+                hasFile = reduce(lambda acc, f: acc or f['filePath'].startswith(path), files_filtered, False)
+                
+                print(f'### {path} is a directory. hasFile: {hasFile}')
                 st.st_mode = stat.S_IFDIR | 0o755
                 st.st_nlink = 2
+
+                # もしそのフォルダ内のファイルを持ってないなら読み込む
+                if not hasFile:
+                    print(f'### Unknown dir searched!')
+                    print(f'### path: {path}, files: {self.files}')
+                    self.files += silo_api_client.get_json(path + '/')
+
             else:
                 st.st_mode = stat.S_IFREG | 0o444
                 st.st_nlink = 1
                 st.st_size = int(file['contentLength'])
                 st.st_mtime = float(file['lastModifiedTime']) / 1000
                 st.st_ctime = float(file['createdTime']) / 1000
+        
+        # `files` に存在しない対象の処理
         else:
             return -errno.ENOENT
         return st
@@ -98,7 +116,7 @@ class HelloFS(Fuse):
         # 存在するファイルなら読み込む
         if path in [f['filePath'] for f in self.files]:
 
-            # 対象のファイルを取得
+            # 対象のファイルをコンソールに表示
             print(f'### read() called (1)! path: {path}, size: {size}, offset: {offset}')
             
             # メモリに無ければダウンロードする
