@@ -95,19 +95,26 @@ class HelloFS(Fuse):
         return 0
 
     def read(self, path, size, offset):
+        # 存在するファイルなら読み込む
         if path in [f['filePath'] for f in self.files]:
 
             # 対象のファイルを取得
             print(f'### read() called (1)! path: {path}, size: {size}, offset: {offset}')
             
+            # メモリに無ければダウンロードする
             if path not in self.reading:
                     self.reading[path] = silo_api_client.get_file(path)
+            else:
+                print(f'### {path} in files... get_file() NOT called!')
 
+            # reading の正しい位置を切り出して buf に代入
             slen = len(self.reading[path])
             if offset < slen:
                 if offset + size > slen:
                     size = slen - offset
                 buf = self.reading[path][offset:offset+size]
+        
+        # 存在しないファイルは読み込まない
         else:
             buf = b''
         print(f'### read() called (2)! path: {path}, size: {size}, offset: {offset}')
