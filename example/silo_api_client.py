@@ -2,6 +2,7 @@ import time
 import requests
 import json
 import pathlib
+import urllib.parse
 
 CONFIG_PATH = pathlib.Path("~/.config/silo/config.json").expanduser()
 
@@ -41,6 +42,16 @@ class SiloAPIClient:
         # debug print
         return files_3
     
+    def _decode_percent(self, obj):
+        if isinstance(obj, str):
+            return urllib.parse.unquote(obj)
+        elif isinstance(obj, list):
+            return [self._decode_percent(item) for item in obj]
+        elif isinstance(obj, dict):
+            return {key: self._decode_percent(value) for key, value in obj.items()}
+        else:
+            return obj
+  
     def get_json(self, path):
         url = self._build_url(path)
         print(f'### get_json() called! path: {path}, url: {url}')
@@ -49,7 +60,8 @@ class SiloAPIClient:
             response = requests.get(url)
             if response.status_code == 200:
                 files_raw = json.loads(response.text)
-                files = self._format_files(files_raw)
+                files_decoded = self._decode_percent(files_raw)
+                files = self._format_files(files_decoded)
 
                 print(f'### get_json() called! Response is {files}')
                 return files
