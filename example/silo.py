@@ -76,7 +76,10 @@ class HelloFS(Fuse):
                 # files からこのフォルダを除いたリストを作る
                 files_filtered = [file for file in self.files if file['filePath'] != path]
                 # このフォルダ内のファイルの情報を持っているか？
-                hasFile = reduce(lambda acc, f: acc or f['filePath'].startswith(path), files_filtered, False)
+                # たとえば path = '/test' のとき、'/test_2' みたいなファイルがあると、'/test' 以下を知らなくても知ってる判定になる
+                # それを避けるために path + '/' = '/test/' を含むファイルがあるかを見る
+                path_folder = path + '/'
+                hasFile = reduce(lambda acc, f: acc or f['filePath'].startswith(path_folder), files_filtered, False)
                 
                 print(f'### {path} is a directory. hasFile: {hasFile}')
                 st.st_mode = stat.S_IFDIR | 0o755
