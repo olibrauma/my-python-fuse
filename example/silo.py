@@ -299,7 +299,7 @@ class HelloFS(Fuse):
         # 成功した場合は 0 を返す
         return 0
 
-def main():#
+def main():
     usage="""
 Userspace hello example
 
