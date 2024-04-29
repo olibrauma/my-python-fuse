@@ -196,6 +196,20 @@ class HelloFS(Fuse):
                 path_pd_no_slash = pathmaker.parent_dir_of(path)[:-1]
                 dir = next(filter(lambda f: f['filePath'] == path_pd_no_slash, json_ppd))
                 self.files.append(dir)
+            elif caller == 'rename':
+                # flush したファイルがある dir の path を取得
+                # 例) path = '/dir/file' > path_pd = '/dir/'
+                path_pd = pathmaker.parent_dir_of(path)
+                pd_json = silo_api_client.get_json(path_pd)
+                print(f'### flush() by rename(), pd_json: {pd_json}')
+
+                # フォルダの情報からアップロードした file の情報を抜き出して files に追記
+                for f in pd_json:
+                    if f['filePath'] == path:
+                        self.files.append(f)
+                        print(f'### flush() by rename(), renamed: {f}')                    
+                    else:
+                        pass
             else:
                 # flush したファイルがある dir の path を取得
                 # 例) path = '/dir/file' > path_pd = '/dir/'
@@ -204,17 +218,17 @@ class HelloFS(Fuse):
                 print(f'### flush() - No caller, pd_json: {pd_json}')
 
                 # フォルダの情報からアップロードした file の情報を抜き出して files を更新
-                # 更新前は create() が書いた
+                # 更新前は create() が書いたダミーが入ってる
                 for i, f in enumerate(self.files):
                     if f['filePath'] == path:
                         self.files[i] = next(filter(lambda file: file["filePath"] == path, pd_json))    
                         print(f'### flush() - update file: {self.files[i]}')                    
                     else:
                         pass
-                
-                # キャッシュを無効化
+                # create() が作ったダミーに関するキャッシュを無効化
                 super().Invalidate(path)
                 print(f'### flush() and cache invalidated!')
+
         return 0
     
     def rename(self, path_old, path_new):
@@ -229,7 +243,7 @@ class HelloFS(Fuse):
 
         # Get file at path_old and upload it to path_new
         self.writing = silo_api_client.get_file(path_old)
-        self.flush(path_new)
+        self.flush(path_new, caller='rename')
 
         # delete file at path_ole
         self.unlink(path_old)
