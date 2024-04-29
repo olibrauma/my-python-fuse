@@ -52,7 +52,6 @@ class HelloFS(Fuse):
         self.files = silo_api_client.get_json("/")
         print(f"### HelloFS init() called! files: {self.files}")
 
-
     def getattr(self, path):
         st = MyStat()
         print(f'### getattr() called. path: {path}, files: {self.files}')
@@ -212,8 +211,10 @@ class HelloFS(Fuse):
                         print(f'### flush() - update file: {self.files[i]}')                    
                     else:
                         pass
-                # 更新を反映
-                self.getattr(path)
+                
+                # キャッシュを無効化
+                super().Invalidate(path)
+                print(f'### flush() and cache invalidated!')
         return 0
     
     def rename(self, path_old, path_new):
@@ -241,15 +242,28 @@ class HelloFS(Fuse):
         mime_type = "application/octet-stream"
         data = b'' # 空のバイト列を送信
         silo_api_client.write_file(path, data, mime_type)
-        
-        # files の中身を更新する
-        time.sleep(3) # write_file() 後すぐだと失敗するっぽいので少し待つ
 
-        # アップロードしたファイルの dir に get_json() して、
+        # アップロードしたファイルの dir
         # 例) path = '/dir/new_file' > path_pd = '/dir/'
         path_pd = pathmaker.parent_dir_of(path)
-        files_pd = silo_api_client.get_json(path_pd)
-        file = next(filter(lambda f: f['filePath'] == path, files_pd))
+
+        # バックオフ時間を管理するジェネレータ
+        # = [1, 2, 4, 8, 16, 32, 64, 64, 64, ...]
+        backoff = (2 ** power if power < 6 else 64 for power in range(7))
+
+        while True:
+            try:
+                # アップロードしたファイルがある dir に get_json() して、
+                # アップロードしたファイルの情報を取得
+                files_pd = silo_api_client.get_json(path_pd)
+                file = next(filter(lambda f: f['filePath'] == path, files_pd))
+                break
+            except StopIteration:
+                bo_time = next(backoff)
+                print(f'### create() re-excec backed off by {bo_time}')
+                time.sleep(bo_time)
+                continue
+
         self.files.append(file)
 
         print(f"### create() done. files: {self.files}")
