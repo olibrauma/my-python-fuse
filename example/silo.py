@@ -11,7 +11,6 @@ import os, stat, errno
 import time
 import magic
 
-import dateutil.parser
 # pull in some spaghetti to make this stuff work without fuse-py being installed
 try:
     import _find_fuse_parts
@@ -20,17 +19,15 @@ except ImportError:
 import fuse
 from fuse import Fuse
 from silo_api_client import SiloAPIClient
-from datetime import datetime
+import pathmaker
 
 if not hasattr(fuse, '__version__'):
     raise RuntimeError("your fuse-py doesn't know of fuse.__version__, probably it's too old.")
 
 fuse.fuse_python_api = (0, 2)
 
-# Create a dictionary and store File objects with path as key
-# arg is the relative path from the mounted root dir
-# The mount root dir's path is '/'
-silo_api_client = SiloAPIClient()
+# 設定ファイルの path を渡して Silo API Client を初期化
+silo_api_client = SiloAPIClient('~/.config/silo/config.json')
 
 class MyStat(fuse.Stat):
     def __init__(self):
@@ -58,26 +55,27 @@ class HelloFS(Fuse):
 
     def getattr(self, path):
         st = MyStat()
-        print(f'### readdir() called. files: {self.files}')
+        print(f'### getattr() called. path: {path}, files: {self.files}')
 
         # `/` は files 内に無いので、この `if` は消せない
         if path == '/':
             st.st_mode = stat.S_IFDIR | 0o755
             st.st_nlink = 2
 
-        # `files` に存在する対象の処理
+        # `files` に存在する対象を処理する
         elif path in [f['filePath'] for f in self.files]:
             print(f'### getattr() for which `files` know')
             # 対象のファイルを取得
             file = next(filter(lambda file: file["filePath"] == path, self.files))
-                
             print(f'### Here "file" is {file}')
+
+            # もし file がディレクトリなら
             if file['isDirectory']:
                 # files からこのフォルダを除いたリストを作る
                 files_filtered = [file for file in self.files if file['filePath'] != path]
                 # このフォルダ内のファイルの情報を持っているか？
-                # たとえば path = '/test' のとき、'/test_2' みたいなファイルがあると、'/test' 以下を知らなくても知ってる判定になる
-                # それを避けるために path + '/' = '/test/' を含むファイルがあるかを見る
+                # たとえば path = '/test' のとき、'/test_2' があると、'/test/' 以下を知らなくても知ってる判定になる
+                # それを避けるために path + '/' = '/test/' で始まる path の有無を見る
                 path_folder = path + '/'
                 hasFile = reduce(lambda acc, f: acc or f['filePath'].startswith(path_folder), files_filtered, False)
                 
@@ -92,7 +90,8 @@ class HelloFS(Fuse):
                     print(f'### Unknown dir searched!')
                     print(f'### path: {path}, files: {self.files}')
                     self.files += silo_api_client.get_json(path + '/')
-
+            
+            # もし file がディレクトリでなくファイルなら
             else:
                 st.st_mode = stat.S_IFREG | 0o444
                 st.st_nlink = 1
@@ -162,49 +161,59 @@ class HelloFS(Fuse):
             # Success
             return -errno.EAGAIN
 
-    def create(self, path, mistery, mode):
-        # どんなファイルが書き込まれるかこの時点では不明なので、
-        # デフォルトで "application/octet-stream" を使用
-        mime_type = "application/octet-stream"
-        data = b'' # 空のバイト列を送信
-        silo_api_client.write_file(path, data, mime_type)
-        
-        # files の中身を更新する
-        time.sleep(3) # write_file() 後すぐだと失敗するっぽいので少し待つ
-
-        # アップロードしたフォルダの path を作る
-        folder_path = path[:path.rfind('/') + 1] if '/' in path else path
-        self.files = silo_api_client.get_json(folder_path)
-        print(f"### create() done. files: {self.files}")
-
-        return 0
-
     def write(self, path, buf, offset):
         print(f"### write() called! path: {path}, type(buf): {type(buf)}, offset: {offset}")
         self.writing += buf 
         print(f'### writing: {len(self.writing)}')
         return len(buf)
     
-    def flush(self, path):
+    def flush(self, path, **kw):
         print(f"### flush() called! path: {path}, len(writing): {len(self.writing)}")
-        
+
         if len(self.writing) == 0:
-            print(f"### flush('{path}'), but nothing done due to len(writing) == {len(self.writing)}")
+            print(f"### flush('{path}'), do nothing, len(writing) == 0")
             return 0
         else: # writing が空でなければデータをアップロード
-            print(f"### flush('{path}'), write_file() will be called due to len(writing) == {len(self.writing)} != 0")
+            print(f"### flush('{path}'), call write_file(), len(writing) == {len(self.writing)} != 0")
             
             file_magic = magic.detect_from_content(self.writing)
             silo_api_client.write_file(path, self.writing, file_magic.mime_type)
             # writing を初期化
             self.writing = b""
 
-            # アップロードした状態で、改めて files の中身を更新
-            time.sleep(3) # write_file() 後すぐだと失敗するっぽいので少し待つ
-            self.files = silo_api_client.get_json("/")
+            # write_file() 後すぐだと失敗するっぽいので少し待つ
+            time.sleep(3)
+            
+            # flush() の呼び出し元で場合分け
+            caller = kw.get('caller', None)
+            if caller == 'mkdir':
+                # .silo がある dir の上の dir の path を取得
+                # 例) path = '/root/folder/.silo' > path_ppd = '/root/'
+                path_ppd = pathmaker.parent_parent_dir_of(path)
+                json_ppd = silo_api_client.get_json(path_ppd)
 
-            # キャッシュを無効化
-            super().Invalidate(path)
+                # .silo がある dir の path から末尾の '/' を取り、
+                # その dir の情報を files に追加
+                path_pd_no_slash = pathmaker.parent_dir_of(path)[:-1]
+                dir = next(filter(lambda f: f['filePath'] == path_pd_no_slash, json_ppd))
+                self.files.append(dir)
+            else:
+                # flush したファイルがある dir の path を取得
+                # 例) path = '/dir/file' > path_pd = '/dir/'
+                path_pd = pathmaker.parent_dir_of(path)
+                pd_json = silo_api_client.get_json(path_pd)
+                print(f'### flush() - No caller, pd_json: {pd_json}')
+
+                # フォルダの情報からアップロードした file の情報を抜き出して files を更新
+                # 更新前は create() が書いた
+                for i, f in enumerate(self.files):
+                    if f['filePath'] == path:
+                        self.files[i] = next(filter(lambda file: file["filePath"] == path, pd_json))    
+                        print(f'### flush() - update file: {self.files[i]}')                    
+                    else:
+                        pass
+                # 更新を反映
+                self.getattr(path)
         return 0
     
     def rename(self, path_old, path_new):
@@ -227,6 +236,26 @@ class HelloFS(Fuse):
         # Success
         return 0
 
+    def create(self, path, mistery, mode):
+        # 書き込まれるファイルがこの時点では不明なので "app/oct-stream" を使用
+        mime_type = "application/octet-stream"
+        data = b'' # 空のバイト列を送信
+        silo_api_client.write_file(path, data, mime_type)
+        
+        # files の中身を更新する
+        time.sleep(3) # write_file() 後すぐだと失敗するっぽいので少し待つ
+
+        # アップロードしたファイルの dir に get_json() して、
+        # 例) path = '/dir/new_file' > path_pd = '/dir/'
+        path_pd = pathmaker.parent_dir_of(path)
+        files_pd = silo_api_client.get_json(path_pd)
+        file = next(filter(lambda f: f['filePath'] == path, files_pd))
+        self.files.append(file)
+
+        print(f"### create() done. files: {self.files}")
+
+        return 0
+
     def mkdir(self, path, mode):
         # ダミー用の空ファイルの中身
         self.writing = b'Silo blank file'
@@ -237,12 +266,12 @@ class HelloFS(Fuse):
         path_mod = path + '/.silo'
         print(f"### mkdir() called! path_mod: {path_mod}")
 
-        self.flush(path_mod)
+        self.flush(path_mod, caller='mkdir')
 
         # 成功した場合は 0 を返す
         return 0
 
-def main():
+def main():#
     usage="""
 Userspace hello example
 

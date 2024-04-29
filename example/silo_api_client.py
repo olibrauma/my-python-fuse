@@ -3,17 +3,18 @@ import requests
 import json
 import pathlib
 import urllib.parse
-
-CONFIG_PATH = pathlib.Path("~/.config/silo/config.json").expanduser()
+import pathmaker
 
 class SiloAPIClient:
-    def __init__(self):
+    def __init__(self, config_path):
+        config_file = pathlib.Path(config_path).expanduser()
+
         # ファイルを読み込む
         try:
-            with open(CONFIG_PATH, "r") as f:
+            with open(config_file, "r") as f:
                 self.config = json.load(f)
         except FileNotFoundError:
-            print(f"Silo 設定ファイルが見つかりません: {CONFIG_PATH}")
+            print(f"Silo 設定ファイルが見つかりません: {config_file}")
             exit(1)
 
         # "endpoint" キーの値を取得
@@ -28,20 +29,22 @@ class SiloAPIClient:
         # path の先頭の '/' を削除
         path = path.lstrip('/')
         return f"{self.endpoint}{path}"
-    
-    def _format_files(self, files):
-        # files の 'filePath' 要素の先頭 6 字を削除
-        files_1 = list(map(lambda f: f | {'filePath': f['filePath'][6:]}, files))
 
-        # files の 'filePath' が '/' で終わる場合、それを削除
-        files_2 = list(map(lambda f: f | {'filePath': f['filePath'][:-1]} if f['filePath'].endswith('/') else f, files_1))
+    def _format_raw_json(self, json):
+        result = []
+        for f in json:
+            # 'filePath' 要素の先頭 6 字を削除
+            f['filePath'] = f['filePath'][6:]
+            
+            # dir の 'filePath' と 'filename' の末尾 '/' を削除
+            if f['isDirectory']:
+                f['filePath'] = f['filePath'][:-1]
+                f['filename'] = f['filename'][:-1]
+            
+            result.append(f)
         
-        # files の 'filename' が '/' で終わる場合、それを削除
-        files_3 = list(map(lambda f: f | {'filename': f['filename'][:-1]} if f['filename'].endswith('/') else f, files_2))
+        return result
 
-        # debug print
-        return files_3
-    
     def _decode_percent(self, obj):
         if isinstance(obj, str):
             return urllib.parse.unquote(obj)
@@ -60,8 +63,8 @@ class SiloAPIClient:
             response = requests.get(url)
             if response.status_code == 200:
                 files_raw = json.loads(response.text)
-                files_decoded = self._decode_percent(files_raw)
-                files = self._format_files(files_decoded)
+                files_fmt = self._format_raw_json(files_raw)
+                files = self._decode_percent(files_fmt)
 
                 print(f'### get_json() called! Response is {files}')
                 return files
