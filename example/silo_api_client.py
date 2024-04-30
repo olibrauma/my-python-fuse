@@ -1,9 +1,7 @@
-import time
 import requests
 import json
 import pathlib
 import urllib.parse
-import pathmaker
 
 class SiloAPIClient:
     def __init__(self, config_path):
