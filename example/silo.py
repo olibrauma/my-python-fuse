@@ -1,5 +1,5 @@
 from silo_api_client import SiloAPIClient
-import re
+import re, magic
 
 CONFIG_PATH = '~/.config/silo/config.json'
 silo_api_client = SiloAPIClient(CONFIG_PATH)
@@ -8,6 +8,7 @@ class Silo:
     def __init__(self):
         # Start Silo API Client
         self.__crops = silo_api_client.get_json('/')
+        self.__crate = {}
 
     def __iter__(self):
         return SiloIterator(self.__crops)
@@ -34,6 +35,26 @@ class Silo:
             self.__crops = list(filter(lambda c: c["filePath"] != path, self.__crops))
             return 0
 
+    def pack(self, path, buf, offset):
+        path_ = hash(path)
+        
+        if path_ not in self.__crate:
+            self.__crate[path_] = b''
+
+        self.__crate[path_] += buf
+        
+        return len(buf)
+    
+    def store(self, path):
+        path_ = hash(path)
+
+        if len(self.__crate[path_]) == 0:
+            return 0
+        else:
+            file_magic = magic.detect_from_content(self.__crate[path_])
+            silo_api_client.write_file(path, self.__crate[path_], file_magic.mime_type)
+            del self.__crate[path_]
+            return self.__crate
 
 class SiloIterator:
     def __init__(self, crops):
