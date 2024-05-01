@@ -1,5 +1,5 @@
 from silo_api_client import SiloAPIClient
-import re, magic
+import re
 
 CONFIG_PATH = '~/.config/silo/config.json'
 sac = SiloAPIClient(CONFIG_PATH)
@@ -7,14 +7,14 @@ sac = SiloAPIClient(CONFIG_PATH)
 class Silo:
     def __init__(self):
         # Start Silo API Client
-        self.__crops = sac.get_json('/')
-        self.__crate = {}
+        self.__crops = sac.get_json()
+        self.__crates = {}
 
     def __iter__(self):
         return SiloIterator(self.__crops)
     
     def stat(self, path):
-        return next(filter(lambda c: c["filePath"] == path, self), None)
+        return next(filter(lambda crop: crop["filePath"] == path, self), None)
     
     def list(self, path='/'):
         # path = '/' の場合、次の正規表現でスラッシュが連続しないようにする
@@ -22,38 +22,43 @@ class Silo:
         # '{path}/.silo' 以外の '{path}/****' を抽出する
         p = rf"^{path_}/(?!.*\.silo$)"
         
-        return list(filter(lambda c: re.search(p, c['filePath']) is not None, self))
+        return list(filter(lambda crop: re.search(p, crop['filePath']) is not None, self))
 
-    def fetch(self, path):
-        return sac.get_file(path)
+    def haul(self, path, size, offset):
+        path_ = hash(path)
+
+        if path_ not in self.__crates:
+            self.__crates[path_] = sac.get_file(path)
+        
+        return self.__crates[path_][offset:offset + size]
     
-    def discard(self, path):
+    def ditch(self, path):
         if self.stat(path) is None:
             raise FileNotFoundError(f'File not found: {path}')
         else:
             sac.delete_file(path)
-            self.__crops = list(filter(lambda c: c["filePath"] != path, self))
+            self.__crops = list(filter(lambda crop: crop["filePath"] != path, self))
             return 0
 
-    def pack(self, path, buf, offset):
+    def feed(self, path, buf, offset):
         path_ = hash(path)
         
-        if path_ not in self.__crate:
-            self.__crate[path_] = b''
+        if path_ not in self.__crates:
+            self.__crates[path_] = b''
 
-        self.__crate[path_] += buf
+        self.__crates[path_][offset:] += buf
         
         return len(buf)
     
-    def store(self, path):
+    def put(self, path):
         path_ = hash(path)
 
-        if len(self.__crate[path_]) == 0:
+        if len(self.__crates[path_]) == 0:
             return 0
         else:
-            sac.write_file(path, self.__crate[path_])
-            del self.__crate[path_]
-            return self.__crate
+            sac.write_file(path, self.__crates[path_])
+            del self.__crates[path_]
+            return 0
 
 class SiloIterator:
     def __init__(self, crops):

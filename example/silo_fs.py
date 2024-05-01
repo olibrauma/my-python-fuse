@@ -19,6 +19,8 @@ import fuse
 from fuse import Fuse
 from silo_api_client import SiloAPIClient
 import pathmaker
+from silo import Silo
+
 
 if not hasattr(fuse, '__version__'):
     raise RuntimeError("your fuse-py doesn't know of fuse.__version__, probably it's too old.")
@@ -27,6 +29,7 @@ fuse.fuse_python_api = (0, 2)
 
 # 設定ファイルの path を渡して Silo API Client を初期化
 silo_api_client = SiloAPIClient('~/.config/silo/config.json')
+silo = Silo()
 
 class MyStat(fuse.Stat):
     def __init__(self):
@@ -120,19 +123,7 @@ class HelloFS(Fuse):
 
             # 対象のファイルをコンソールに表示
             print(f'### read() called (1)! path: {path}, size: {size}, offset: {offset}')
-            
-            # メモリに無ければダウンロードする
-            if path not in self.reading:
-                    self.reading[path] = silo_api_client.get_file(path)
-            else:
-                print(f'### {path} in files... get_file() NOT called!')
-
-            # reading の正しい位置を切り出して buf に代入
-            slen = len(self.reading[path])
-            if offset < slen:
-                if offset + size > slen:
-                    size = slen - offset
-                buf = self.reading[path][offset:offset+size]
+            buf = silo.haul(path, size, offset)
         
         # 存在しないファイルは読み込まない
         else:
@@ -270,7 +261,7 @@ class HelloFS(Fuse):
                 break
             except StopIteration:
                 bo_time = next(backoff)
-                print(f'### create() re-excec backed off by {bo_time}')
+                print(f'### create() - File not found, get_json() retry backed off by {bo_time}')
                 time.sleep(bo_time)
                 continue
 

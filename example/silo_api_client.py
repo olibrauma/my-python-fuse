@@ -54,7 +54,7 @@ class SiloAPIClient:
         else:
             return obj
   
-    def get_json(self, path):
+    def get_json(self, path='/'):
         url = self._build_url(path)
         print(f'### get_json() called! path: {path}, url: {url}')
 
