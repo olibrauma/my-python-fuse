@@ -51,8 +51,7 @@ class Silo:
         if len(self.__crate[path_]) == 0:
             return 0
         else:
-            file_magic = magic.detect_from_content(self.__crate[path_])
-            sac.write_file(path, self.__crate[path_], file_magic.mime_type)
+            sac.write_file(path, self.__crate[path_])
             del self.__crate[path_]
             return self.__crate
 

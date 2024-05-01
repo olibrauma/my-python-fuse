@@ -2,6 +2,7 @@ import requests
 import json
 import pathlib
 import urllib.parse
+import magic
 
 class SiloAPIClient:
     def __init__(self, config_path):
@@ -107,11 +108,12 @@ class SiloAPIClient:
             print(f"Error: {e}")
             return None
 
-    def write_file(self, path, data, mime_type):
+    def write_file(self, path, data):
         url = self._build_url(path)
         print(f'### write_file() called! Path: {url}, len(data): {len(data)}')
 
-        headers = {'Content-type': mime_type}
+        magic_ = magic.detect_from_content(data)
+        headers = {'Content-type': magic_.mime_type}
 
         try:
             response = requests.put(url, data=data, headers=headers)

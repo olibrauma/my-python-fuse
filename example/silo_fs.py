@@ -9,7 +9,6 @@
 from functools import reduce
 import os, stat, errno
 import time
-import magic
 
 # pull in some spaghetti to make this stuff work without fuse-py being installed
 try:
@@ -175,8 +174,7 @@ class HelloFS(Fuse):
         else: # writing が空でなければデータをアップロード
             print(f"### flush('{path}'), call write_file(), len(writing) == {len(self.writing)} != 0")
             
-            file_magic = magic.detect_from_content(self.writing)
-            silo_api_client.write_file(path, self.writing, file_magic.mime_type)
+            silo_api_client.write_file(path, self.writing)
             # writing を初期化
             self.writing = b""
 
@@ -252,10 +250,8 @@ class HelloFS(Fuse):
         return 0
 
     def create(self, path, mistery, mode):
-        # 書き込まれるファイルがこの時点では不明なので "app/oct-stream" を使用
-        mime_type = "application/octet-stream"
         data = b'' # 空のバイト列を送信
-        silo_api_client.write_file(path, data, mime_type)
+        silo_api_client.write_file(path, data)
 
         # アップロードしたファイルの dir
         # 例) path = '/dir/new_file' > path_pd = '/dir/'
