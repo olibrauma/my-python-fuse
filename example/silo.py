@@ -2,19 +2,19 @@ from silo_api_client import SiloAPIClient
 import re, magic
 
 CONFIG_PATH = '~/.config/silo/config.json'
-silo_api_client = SiloAPIClient(CONFIG_PATH)
+sac = SiloAPIClient(CONFIG_PATH)
 
 class Silo:
     def __init__(self):
         # Start Silo API Client
-        self.__crops = silo_api_client.get_json('/')
+        self.__crops = sac.get_json('/')
         self.__crate = {}
 
     def __iter__(self):
         return SiloIterator(self.__crops)
     
     def stat(self, path):
-        return next(filter(lambda c: c["filePath"] == path, self.__crops), None)
+        return next(filter(lambda c: c["filePath"] == path, self), None)
     
     def list(self, path='/'):
         # path = '/' の場合、次の正規表現でスラッシュが連続しないようにする
@@ -22,17 +22,17 @@ class Silo:
         # '{path}/.silo' 以外の '{path}/****' を抽出する
         p = rf"^{path_}/(?!.*\.silo$)"
         
-        return list(filter(lambda c: re.search(p, c['filePath']) is not None, self.__crops))
+        return list(filter(lambda c: re.search(p, c['filePath']) is not None, self))
 
     def fetch(self, path):
-        return silo_api_client.get_file(path)
+        return sac.get_file(path)
     
     def discard(self, path):
         if self.stat(path) is None:
             raise FileNotFoundError(f'File not found: {path}')
         else:
-            silo_api_client.delete_file(path)
-            self.__crops = list(filter(lambda c: c["filePath"] != path, self.__crops))
+            sac.delete_file(path)
+            self.__crops = list(filter(lambda c: c["filePath"] != path, self))
             return 0
 
     def pack(self, path, buf, offset):
@@ -52,7 +52,7 @@ class Silo:
             return 0
         else:
             file_magic = magic.detect_from_content(self.__crate[path_])
-            silo_api_client.write_file(path, self.__crate[path_], file_magic.mime_type)
+            sac.write_file(path, self.__crate[path_], file_magic.mime_type)
             del self.__crate[path_]
             return self.__crate
 
