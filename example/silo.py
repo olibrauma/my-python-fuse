@@ -40,7 +40,7 @@ class Silo:
             self.__crops = list(filter(lambda crop: crop["filePath"] != path, self))
             return 0
 
-    def feed(self, path, buf, offset):
+    def load(self, path, buf, offset):
         path_ = hash(path)
         
         if path_ not in self.__crates:
