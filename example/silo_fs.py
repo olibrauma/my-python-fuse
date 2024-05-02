@@ -65,10 +65,9 @@ class HelloFS(Fuse):
 
         # `files` に存在する対象を処理する
         elif path in [f['filePath'] for f in self.files]:
-            print(f'### getattr() for which `files` know')
             # 対象のファイルを取得
-            file = next(filter(lambda file: file["filePath"] == path, self.files))
-            print(f'### Here "file" is {file}')
+            file = silo.stat(path)
+            print(f'### getattr() - path: {path}, file: {file}')
 
             # もし file がディレクトリなら
             if file['isDirectory']:

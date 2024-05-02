@@ -1,4 +1,5 @@
 from silo_api_client import SiloAPIClient
+import pathmaker
 import re
 
 CONFIG_PATH = '~/.config/silo/config.json'
@@ -14,6 +15,9 @@ class Silo:
         return SiloIterator(self.__silo)
     
     def stat(self, path):
+        s = next(filter(lambda s: s["filePath"] == path, self), None)
+        if s is None:
+            self.__silo += sac.get_json(pathmaker.parent_dir_of(path))
         return next(filter(lambda s: s["filePath"] == path, self), None)
     
     def list(self, path='/'):
