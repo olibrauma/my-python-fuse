@@ -48,15 +48,10 @@ class HelloFS(Fuse):
     writing = b""
     reading = {}
 
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
-
-        self.files = silo_api_client.get_json("/")
-        print(f"### HelloFS init() called! files: {self.files}")
-
     def getattr(self, path):
         st = MyStat()
-        print(f'### getattr() called. path: {path}, files: {self.files}')
+        print(f'### getattr() called. path: {path}')
+        crop = silo.stat(path)
 
         # `/` は files 内に無いので、この `if` は消せない
         if path == '/':
@@ -64,53 +59,47 @@ class HelloFS(Fuse):
             st.st_nlink = 2
 
         # `files` に存在する対象を処理する
-        elif path in [f['filePath'] for f in self.files]:
+        elif crop is not None:
             # 対象のファイルを取得
-            file = silo.stat(path)
-            print(f'### getattr() - path: {path}, file: {file}')
+
+            print(f'### getattr() - path: {path}, file: {crop}')
 
             # もし file がディレクトリなら
-            if file['isDirectory']:
-                # files からこのフォルダを除いたリストを作る
-                files_filtered = [file for file in self.files if file['filePath'] != path]
-                # このフォルダ内のファイルの情報を持っているか？
-                # たとえば path = '/test' のとき、'/test_2' があると、'/test/' 以下を知らなくても知ってる判定になる
-                # それを避けるために path + '/' = '/test/' で始まる path の有無を見る
-                path_folder = path + '/'
-                hasFile = reduce(lambda acc, f: acc or f['filePath'].startswith(path_folder), files_filtered, False)
+            if crop['isDirectory']:
+                has_file = (len(silo.list(path)) >= 1)
                 
-                print(f'### {path} is a directory. hasFile: {hasFile}')
+                print(f'### {path} is a directory. hasFile: {has_file}')
                 st.st_mode = stat.S_IFDIR | 0o755
                 st.st_nlink = 2
-                st.st_mtime = float(file['lastModifiedTime']) / 1000
-                st.st_ctime = float(file['createdTime']) / 1000
+                st.st_mtime = float(crop['lastModifiedTime']) / 1000
+                st.st_ctime = float(crop['createdTime']) / 1000
 
                 # もしそのフォルダ内のファイルを持ってないなら読み込む
-                if not hasFile:
+                if not has_file:
                     print(f'### Unknown dir searched!')
-                    print(f'### path: {path}, files: {self.files}')
-                    self.files += silo_api_client.get_json(path + '/')
-            
+                    print(f'### path: {path}')
+                    silo.add(path, 0)            
             # もし file がディレクトリでなくファイルなら
             else:
                 st.st_mode = stat.S_IFREG | 0o444
                 st.st_nlink = 1
-                st.st_size = int(file['contentLength'])
-                st.st_mtime = float(file['lastModifiedTime']) / 1000
-                st.st_ctime = float(file['createdTime']) / 1000
+                st.st_size = int(crop['contentLength'])
+                st.st_mtime = float(crop['lastModifiedTime']) / 1000
+                st.st_ctime = float(crop['createdTime']) / 1000
         
         # `files` に存在しない対象の処理
         else:
+            silo.add(path, 1)
             return -errno.ENOENT
         return st
 
     def readdir(self, path, offset):
-        for r in  '.', '..', *[f["filename"] for f in self.files]:
+        for r in  '.', '..', *[c["filename"] for c in silo.list()]:
             print(f'### readdir() called. path: {path}, Direntry: {r}')
             yield fuse.Direntry(r)
 
     def open(self, path, flags):
-        if path not in [f['filePath'] for f in self.files]:
+        if silo.stat(path) is None:
             return -errno.ENOENT
         if (flags & os.O_RDONLY) != os.O_RDONLY:
             return -errno.EACCES
@@ -118,7 +107,7 @@ class HelloFS(Fuse):
 
     def read(self, path, size, offset):
         # 存在するファイルなら読み込む
-        if path in [f['filePath'] for f in self.files]:
+        if silo.stat(path) is not None:
 
             # 対象のファイルをコンソールに表示
             print(f'### read() called (1)! path: {path}, size: {size}, offset: {offset}')
@@ -151,9 +140,8 @@ class HelloFS(Fuse):
 
     def write(self, path, buf, offset):
         print(f"### write() called! path: {path}, type(buf): {type(buf)}, offset: {offset}")
-        self.writing += buf 
-        print(f'### writing: {len(self.writing)}')
-        return len(buf)
+        
+        return silo.load(path, buf, offset)
     
     def flush(self, path, **kw):
         print(f"### flush() called! path: {path}, len(writing): {len(self.writing)}")

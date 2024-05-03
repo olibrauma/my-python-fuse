@@ -1,5 +1,5 @@
+from functools import reduce
 from silo_api_client import SiloAPIClient
-import pathmaker
 import re
 
 CONFIG_PATH = '~/.config/silo/config.json'
@@ -15,9 +15,6 @@ class Silo:
         return SiloIterator(self.__silo)
     
     def stat(self, path):
-        s = next(filter(lambda s: s["filePath"] == path, self), None)
-        if s is None:
-            self.__silo += sac.get_json(pathmaker.parent_dir_of(path))
         return next(filter(lambda s: s["filePath"] == path, self), None)
     
     def list(self, path='/'):
@@ -27,6 +24,32 @@ class Silo:
         p = rf"^{path_}/(?!.*\.silo$)"
         
         return list(filter(lambda s: re.search(p, s['filePath']) is not None, self))
+    
+    # path と遡上階数を指定して silo に json を追加
+    # 0. フォルダ化: '/hoge/fuga' > '/hoge/fuga/'
+    # 1. 遡上:      '/hoge/fuga' > '/hoge/'
+    # 2. 2 つ遡上:   '/hoge/fuga' > '/'
+    def add(self, path, backtrack=0):
+        def _backtrack(path, count):
+            if count < 1:
+                return path + '/'
+            
+            path_list = path.split('/')
+            path_list.pop()
+            new_path = '/'.join(path_list)
+            
+            return _backtrack(new_path, count - 1)
+        
+        path = _backtrack(path, backtrack)
+        self.__silo += sac.get_json(path)
+        self.__silo = self._unique()
+        print(f'### add() - silo: {self.__silo}')
+        return 0
+
+    def _unique(self):
+        return reduce(
+            lambda acc, x: acc + [x] if x['filePath'] not in [y['filePath'] for y in acc] else acc, 
+            self, [])
 
     def haul(self, path, size, offset):
         if path not in self.__silage:
@@ -47,7 +70,7 @@ class Silo:
         if path not in self.__silage:
             self.__silage[path] = b''
 
-        self.__silage[path][offset:] += buf
+        self.__silage[path] += buf
         
         return len(buf)
     
