@@ -140,13 +140,11 @@ class HelloFS(Fuse):
 
     def write(self, path, buf, offset):
         print(f"### write() called! path: {path}, type(buf): {type(buf)}, offset: {offset}")
-        
         return silo.load(path, buf, offset)
     
     def flush(self, path, **kw):
-        print(f"### flush() called! path: {path}, len(writing): {len(self.writing)}")
         print(f'### flush() - kw: {kw}')
-        silo.fill(path, kw)
+        silo.fill(path, **kw)
 
         return 0
     
@@ -170,9 +168,11 @@ class HelloFS(Fuse):
         # Success
         return 0
 
+    # Called when 
     def create(self, path, mistery, mode):
-        silo.load(path, b'', 0)
-        silo.fill(path)
+        print(f'### create() - path: {path}, mistery: {mistery}, mode: {mode}')
+        silo.load(path, b'Silo blank file', 0)
+        silo.fill(path, caller='create')
         return 0
 
     def mkdir(self, path, mode):

@@ -64,7 +64,7 @@ class Silo:
             del self.__silage[path]
             return 0
 
-    def load(self, path, buf, offset):        
+    def load(self, path, buf, offset):
         if path not in self.__silage:
             self.__silage[path] = b''
 
@@ -77,7 +77,6 @@ class Silo:
             return 0
         else:
             sac.write_file(path, self.__silage[path])
-            del self.__silage[path]
             
             caller = kw.get('caller', None)
             print(caller)
@@ -85,8 +84,9 @@ class Silo:
                 self.add(path, 2)
             elif caller == 'rename':
                 self.add(path, 1)
-            else:
-                self.add(path, 1)
+            elif caller == 'create':
+                while self.stat(path) is None:
+                    self.add(path, 1)
             return 0
 
 class SiloIterator:
