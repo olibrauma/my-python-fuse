@@ -33,17 +33,15 @@ class Silo:
         def _backtrack(path, count):
             if count < 1:
                 return path + '/'
-            
-            path_list = path.split('/')
-            path_list.pop()
-            new_path = '/'.join(path_list)
-            
-            return _backtrack(new_path, count - 1)
+            else:
+                path_list = path.split('/')
+                path_list.pop()
+                new_path = '/'.join(path_list)
+                return _backtrack(new_path, count - 1)
         
-        path = _backtrack(path, backtrack)
-        self.__silo += sac.get_json(path)
+        path_ = _backtrack(path, backtrack)
+        self.__silo += sac.get_json(path_)
         self.__silo = self._unique()
-        print(f'### add() - silo: {self.__silo}')
         return 0
 
     def _unique(self):
@@ -74,12 +72,21 @@ class Silo:
         
         return len(buf)
     
-    def fill(self, path):
+    def fill(self, path, **kw):
         if len(self.__silage[path]) == 0:
             return 0
         else:
             sac.write_file(path, self.__silage[path])
             del self.__silage[path]
+            
+            caller = kw.get('caller', None)
+            print(caller)
+            if caller == 'mkdir':
+                self.add(path, 2)
+            elif caller == 'rename':
+                self.add(path, 1)
+            else:
+                self.add(path, 1)
             return 0
 
 class SiloIterator:

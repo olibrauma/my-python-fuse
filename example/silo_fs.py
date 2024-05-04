@@ -76,8 +76,8 @@ class HelloFS(Fuse):
 
                 # もしそのフォルダ内のファイルを持ってないなら読み込む
                 if not has_file:
-                    print(f'### Unknown dir searched!')
-                    print(f'### path: {path}')
+                    print(f'### Unknown dir - path: {path}')
+                    print(f'### getattr() - called silo.add({path}, 0)')                    
                     silo.add(path, 0)            
             # もし file がディレクトリでなくファイルなら
             else:
@@ -89,7 +89,7 @@ class HelloFS(Fuse):
         
         # `files` に存在しない対象の処理
         else:
-            silo.add(path, 1)
+            print(f'### getattr() - crop = silo.stat({path}) is None')
             return -errno.ENOENT
         return st
 
@@ -145,76 +145,19 @@ class HelloFS(Fuse):
     
     def flush(self, path, **kw):
         print(f"### flush() called! path: {path}, len(writing): {len(self.writing)}")
-
-        if len(self.writing) == 0:
-            print(f"### flush('{path}'), do nothing, len(writing) == 0")
-            return 0
-        else: # writing が空でなければデータをアップロード
-            print(f"### flush('{path}'), call write_file(), len(writing) == {len(self.writing)} != 0")
-            
-            silo_api_client.write_file(path, self.writing)
-            # writing を初期化
-            self.writing = b""
-
-            # write_file() 後すぐだと失敗するっぽいので少し待つ
-            time.sleep(3)
-            
-            # flush() の呼び出し元で場合分け
-            caller = kw.get('caller', None)
-            if caller == 'mkdir':
-                # .silo がある dir の上の dir の path を取得
-                # 例) path = '/root/folder/.silo' > path_ppd = '/root/'
-                path_ppd = pathmaker.parent_parent_dir_of(path)
-                json_ppd = silo_api_client.get_json(path_ppd)
-
-                # .silo がある dir の path から末尾の '/' を取り、
-                # その dir の情報を files に追加
-                path_pd_no_slash = pathmaker.parent_dir_of(path)[:-1]
-                dir = next(filter(lambda f: f['filePath'] == path_pd_no_slash, json_ppd))
-                self.files.append(dir)
-            elif caller == 'rename':
-                # flush したファイルがある dir の path を取得
-                # 例) path = '/dir/file' > path_pd = '/dir/'
-                path_pd = pathmaker.parent_dir_of(path)
-                pd_json = silo_api_client.get_json(path_pd)
-                print(f'### flush() by rename(), pd_json: {pd_json}')
-
-                # フォルダの情報からアップロードした file の情報を抜き出して files に追記
-                for f in pd_json:
-                    if f['filePath'] == path:
-                        self.files.append(f)
-                        print(f'### flush() by rename(), renamed: {f}')                    
-                    else:
-                        pass
-            else:
-                # flush したファイルがある dir の path を取得
-                # 例) path = '/dir/file' > path_pd = '/dir/'
-                path_pd = pathmaker.parent_dir_of(path)
-                pd_json = silo_api_client.get_json(path_pd)
-                print(f'### flush() - No caller, pd_json: {pd_json}')
-
-                # フォルダの情報からアップロードした file の情報を抜き出して files を更新
-                # 更新前は create() が書いたダミーが入ってる
-                for i, f in enumerate(self.files):
-                    if f['filePath'] == path:
-                        self.files[i] = next(filter(lambda file: file["filePath"] == path, pd_json))    
-                        print(f'### flush() - update file: {self.files[i]}')                    
-                    else:
-                        pass
-                # create() が作ったダミーに関するキャッシュを無効化
-                super().Invalidate(path)
-                print(f'### flush() and cache invalidated!')
+        print(f'### flush() - kw: {kw}')
+        silo.fill(path, kw)
 
         return 0
     
     def rename(self, path_old, path_new):
         print(f"### rename() called! path_old: {path_old}, path_new: {path_new}")
         # Check if old path exists
-        if path_old not in [f['filePath'] for f in self.files]:
+        if silo.stat(path_old) is None:
             return -errno.ENOENT
 
         # Check if new path already exists
-        if path_new in [f['filePath'] for f in self.files]:
+        if silo.stat(path_new) is not None:
             return -errno.EEXIST
 
         # Get file at path_old and upload it to path_new
@@ -228,34 +171,8 @@ class HelloFS(Fuse):
         return 0
 
     def create(self, path, mistery, mode):
-        data = b'' # 空のバイト列を送信
-        silo_api_client.write_file(path, data)
-
-        # アップロードしたファイルの dir
-        # 例) path = '/dir/new_file' > path_pd = '/dir/'
-        path_pd = pathmaker.parent_dir_of(path)
-
-        # バックオフ時間を管理するジェネレータ
-        # = [1, 2, 4, 8, 16, 32, 64, 64, 64, ...]
-        backoff = (2 ** power if power < 6 else 64 for power in range(7))
-
-        while True:
-            try:
-                # アップロードしたファイルがある dir に get_json() して、
-                # アップロードしたファイルの情報を取得
-                files_pd = silo_api_client.get_json(path_pd)
-                file = next(filter(lambda f: f['filePath'] == path, files_pd))
-                break
-            except StopIteration:
-                bo_time = next(backoff)
-                print(f'### create() - File not found, get_json() retry backed off by {bo_time}')
-                time.sleep(bo_time)
-                continue
-
-        self.files.append(file)
-
-        print(f"### create() done. files: {self.files}")
-
+        silo.load(path, b'', 0)
+        silo.fill(path)
         return 0
 
     def mkdir(self, path, mode):
