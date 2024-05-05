@@ -15,7 +15,6 @@ except ImportError:
     pass
 import fuse
 from fuse import Fuse
-from silo_api_client import SiloAPIClient
 from silo import Silo
 
 
@@ -24,8 +23,7 @@ if not hasattr(fuse, '__version__'):
 
 fuse.fuse_python_api = (0, 2)
 
-# 設定ファイルの path を渡して Silo API Client を初期化
-silo_api_client = SiloAPIClient('~/.config/silo/config.json')
+# silo を初期化
 silo = Silo()
 
 class MyStat(fuse.Stat):

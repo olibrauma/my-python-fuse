@@ -13,12 +13,12 @@ class Silo:
     def __iter__(self):
         return SiloIterator(self.__silo)
     
-    def stat(self, path, **args):
-        if args.get('index', None) == True:
-            return [i for i, n in enumerate(self) if n['filePath'] == path].pop()
-        else:
-            return next(filter(lambda s: s["filePath"] == path, self), None)
+    def stat(self, path):
+        return next(filter(lambda s: s["filePath"] == path, self), None)
     
+    def index(self, path):
+        return [i for i, n in enumerate(self) if n['filePath'] == path].pop()
+        
     def list(self, path='/'):
         # path = '/' の場合、次の正規表現でスラッシュが連続しないようにする
         path_ = path if path != '/' else ''
@@ -26,7 +26,7 @@ class Silo:
         p = rf"^{path_}/(?!.*\.silo$)"
         
         return list(filter(lambda s: re.search(p, s['filePath']) is not None, self))
-    
+
     # path と遡上階数を指定して silo に json を追加
     # 0. 自身がフォルダ: '/hoge/fuga' > '/hoge/fuga/'
     # 1. 遡上:          '/hoge/fuga' > '/hoge/'
@@ -57,7 +57,7 @@ class Silo:
         return self.stat(path)['content'][offset:offset + size]
 
     def content(self, path):
-        i = self.stat(path, index=True)
+        i = self.index(path)
         if self.__silo[i].get('content', None) is None:
             self.__silo[i]['content'] = sac.get_file(path)
             print(f'### content() - len: {len(self.__silo[i]['content'])}')
@@ -73,7 +73,7 @@ class Silo:
             return 0
 
     def load(self, path, buf, offset):
-        i = self.stat(path, index=True)
+        i = self.index(path)
 
         if self.__silo[i].get('content', None) is None:
             self.__silo[i]['content'] = b''
@@ -101,16 +101,16 @@ class Silo:
             while self.stat(path) is None:
                 self.add(path, 1)
         
-        elif self.stat(path)['contentLength'] == len(self.__silo[self.stat(path, index = True)]['content']):
+        elif self.stat(path)['contentLength'] == len(self.__silo[self.index(path)]['content']):
             print(f'### fill() - do nothing for path: {path}')
             return 0
         else:
-            sac.write_file(path, self.__silo[self.stat(path, index = True)]['content'])
+            sac.write_file(path, self.__silo[self.index(path)]['content'])
 
         return 0
     
     def copy(self, path_old, path_new):
-        i_old = self.stat(path_old, index=True)
+        i_old = self.index(path_old)
 
         if self.__silo[i_old].get('content', None) is None:
             self.content(path_old)
