@@ -88,9 +88,10 @@ class Silo:
             sac.write_file(path, self.__silage[path])
             self.add(path, 2)
         
-        elif caller == 'rename':
+        elif caller == 'copy':
             sac.write_file(path, self.__silage[path])
-            self.add(path, 1)
+            while self.stat(path) is None:
+                self.add(path, 1)
         
         elif self.stat(path)['contentLength'] == len(self.__silage[path]):
             print(f'### fill() - do nothing for path: {path}')
@@ -98,6 +99,14 @@ class Silo:
         else:
             sac.write_file(path, self.__silage[path])
 
+        return 0
+    
+    def copy(self, path_old, path_new):
+        if self.__silage[path_old] is None:
+            self.__silage[path_old] = sac.get_file(path_old)
+
+        self.__silage[path_new] = self.__silage[path_old]
+        self.fill(path_new, caller='copy')
         return 0
 
 class SiloIterator:

@@ -145,11 +145,10 @@ class HelloFS(Fuse):
             return -errno.EEXIST
 
         # Get file at path_old and upload it to path_new
-        self.writing = silo_api_client.get_file(path_old)
-        self.flush(path_new, caller='rename')
+        silo.copy(path_old, path_new)
 
         # delete file at path_ole
-        self.unlink(path_old)
+        silo.empty(path_old)
 
         # Success
         return 0
