@@ -9,7 +9,6 @@ sac = SiloAPIClient(CONFIG_PATH)
 class Silo:
     def __init__(self):
         self.__silo = sac.get_json()        
-        self.__silage = {}
 
     def __iter__(self):
         return SiloIterator(self.__silo)
@@ -92,11 +91,10 @@ class Silo:
             while self.stat(path) is None:
                 self.add(path, 1)
 
-        elif caller == 'mkdir':
-            i = self.stat(path, index = True)
-            sac.write_file(path, self.__silo[i]['content'])
-            time.sleep(2)
-            self.add(path, 2)
+        elif caller == 'mkdir': # path は作りたいフォルダ
+            sac.write_file(path + '/.silo', b'Silo blank file')
+            while self.stat(path) is None:
+                self.add(path, 1)
         
         elif caller == 'copy':
             sac.write_file(path, kw.get('data'))
