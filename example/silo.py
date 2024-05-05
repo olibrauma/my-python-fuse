@@ -1,4 +1,5 @@
 from functools import reduce
+import time
 from silo_api_client import SiloAPIClient
 import re
 
@@ -53,6 +54,7 @@ class Silo:
         if path not in self.__silage:
             self.__silage[path] = sac.get_file(path)
         
+        print(f'### haul() - path: {path}, from {offset} to {offset + size} in {len(self.__silage[path])}')
         return self.__silage[path][offset:offset + size]
     
     def empty(self, path):
@@ -61,7 +63,8 @@ class Silo:
         else:
             sac.delete_file(path)
             self.__silo = list(filter(lambda s: s["filePath"] != path, self))
-            del self.__silage[path]
+            if path not in self.__silage:
+                del self.__silage[path]
             return 0
 
     def load(self, path, buf, offset):
@@ -73,21 +76,29 @@ class Silo:
         return len(buf)
     
     def fill(self, path, **kw):
-        if len(self.__silage[path]) == 0:
+        caller = kw.get('caller', None)
+        print(caller)
+
+        if caller == 'create':
+            sac.write_file(path, self.__silage[path])
+            while self.stat(path) is None:
+                self.add(path, 1)
+
+        elif caller == 'mkdir':
+            sac.write_file(path, self.__silage[path])
+            self.add(path, 2)
+        
+        elif caller == 'rename':
+            sac.write_file(path, self.__silage[path])
+            self.add(path, 1)
+        
+        elif self.stat(path)['contentLength'] == len(self.__silage[path]):
+            print(f'### fill() - do nothing for path: {path}')
             return 0
         else:
             sac.write_file(path, self.__silage[path])
-            
-            caller = kw.get('caller', None)
-            print(caller)
-            if caller == 'mkdir':
-                self.add(path, 2)
-            elif caller == 'rename':
-                self.add(path, 1)
-            elif caller == 'create':
-                while self.stat(path) is None:
-                    self.add(path, 1)
-            return 0
+
+        return 0
 
 class SiloIterator:
     def __init__(self, silo_):

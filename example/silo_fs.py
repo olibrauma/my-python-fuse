@@ -121,22 +121,8 @@ class HelloFS(Fuse):
         return buf
 
     def unlink(self, path):
-        print(f"### unlink() called! Path: {path}.")
-        # Check if path exists
-        if path not in [f['filePath'] for f in self.files]:
-            return -errno.ENOENT
-        # Delete the file object from `files`
-        elif silo_api_client.delete_file(path) == 0 or 400:
-            # 対象のファイルを files の配列から削除
-            for i, f in enumerate(self.files):
-                if f["filePath"] == path:
-                    del self.files[i]
-                    break 
-            print(f"Deleted file not in files? > {self.files}")
-            return 0
-        else:
-            # Success
-            return -errno.EAGAIN
+        print(f'### unlink() called! Path: {path}')
+        return silo.empty(path)
 
     def write(self, path, buf, offset):
         print(f"### write() called! path: {path}, type(buf): {type(buf)}, offset: {offset}")
@@ -171,7 +157,7 @@ class HelloFS(Fuse):
     # Called when 
     def create(self, path, mistery, mode):
         print(f'### create() - path: {path}, mistery: {mistery}, mode: {mode}')
-        silo.load(path, b'Silo blank file', 0)
+        silo.load(path, b'', 0)
         silo.fill(path, caller='create')
         return 0
 
