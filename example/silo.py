@@ -86,6 +86,7 @@ class Silo:
 
         elif caller == 'mkdir':
             sac.write_file(path, self.__silage[path])
+            time.sleep(2)
             self.add(path, 2)
         
         elif caller == 'copy':

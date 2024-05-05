@@ -161,16 +161,16 @@ class HelloFS(Fuse):
         return 0
 
     def mkdir(self, path, mode):
-        # ダミー用の空ファイルの中身
-        self.writing = b'Silo blank file'
+        # ダミー用の空ファイルを __silage に保存
+        path_mod = path + '/.silo'
+        silo.load(path_mod, b'', 0)
         
         # modified の path に、ダミーの空ファイル '.silo' を作る
         # 引数の path = '/test' みたいな感じなので
         # path_mod = '/test/.silo' になるはず
-        path_mod = path + '/.silo'
         print(f"### mkdir() called! path_mod: {path_mod}")
-
-        self.flush(path_mod, caller='mkdir')
+        
+        silo.fill(path_mod, caller='mkdir')
 
         # 成功した場合は 0 を返す
         return 0
