@@ -68,12 +68,6 @@ class HelloFS(Fuse):
                 st.st_nlink = 2
                 st.st_mtime = float(crop['lastModifiedTime']) / 1000
                 st.st_ctime = float(crop['createdTime']) / 1000
-
-                # もしそのフォルダ内のファイルを持ってないなら読み込む
-                if not has_file:
-                    print(f'### Unknown dir - path: {path}')
-                    print(f'### getattr() - called silo.add({path}, 0)')                    
-                    silo.add(path, 0)            
             # もし file がディレクトリでなくファイルなら
             else:
                 st.st_mode = stat.S_IFREG | 0o444

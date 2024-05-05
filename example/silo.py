@@ -24,24 +24,21 @@ class Silo:
         path_ = path if path != '/' else ''
         # '{path}/.silo' 以外の '{path}/****' を抽出する
         p = rf"^{path_}/(?!.*\.silo$)"
+        list_ = list(filter(lambda s: re.search(p, s['filePath']) is not None, self))
         
-        return list(filter(lambda s: re.search(p, s['filePath']) is not None, self))
+        # 対象のフォルダ以下のファイルを知らなければ取得して再抽出
+        if len(list_) == 0:
+            self.sync(path + '/')
+            list_ = list(filter(lambda s: re.search(p, s['filePath']) is not None, self))
 
-    # path と遡上階数を指定して silo に json を追加
-    # 0. 自身がフォルダ: '/hoge/fuga' > '/hoge/fuga/'
-    # 1. 遡上:          '/hoge/fuga' > '/hoge/'
-    # 2. 2 つ遡上:      '/hoge/fuga' > '/'
-    def add(self, path, backtrack=0):
-        def _backtrack(path, count):
-            if count < 1:
-                return path + '/'
-            else:
-                path_list = path.split('/')
-                path_list.pop()
-                new_path = '/'.join(path_list)
-                return _backtrack(new_path, count - 1)
+        return list_
+
+    # path = '/hoge/fuga' > path_ = '/hoge/'
+    def sync(self, path):
+        path_list = path.split('/')
+        path_list.pop()
+        path_ = '/'.join(path_list) + '/'
         
-        path_ = _backtrack(path, backtrack)
         self.__silo += sac.get_json(path_)
         self.__silo = self._unique()
         return 0
@@ -89,17 +86,17 @@ class Silo:
         if caller == 'create':
             sac.write_file(path, b'')
             while self.stat(path) is None:
-                self.add(path, 1)
+                self.sync(path)
 
         elif caller == 'mkdir': # path は作りたいフォルダ
             sac.write_file(path + '/.silo', b'Silo blank file')
             while self.stat(path) is None:
-                self.add(path, 1)
+                self.sync(path)
         
         elif caller == 'copy':
             sac.write_file(path, kw.get('data'))
             while self.stat(path) is None:
-                self.add(path, 1)
+                self.sync(path)
         
         elif self.stat(path)['contentLength'] == len(self.__silo[self.index(path)]['content']):
             print(f'### fill() - do nothing for path: {path}')
