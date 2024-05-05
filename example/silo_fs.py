@@ -126,7 +126,7 @@ class HelloFS(Fuse):
         return silo.load(path, buf, offset)
     
     def flush(self, path, **kw):
-        print(f'### flush() - kw: {kw}')
+        print(f'### flush({path}) - kw: {kw}')
         silo.fill(path, **kw)
 
         return 0

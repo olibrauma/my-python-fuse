@@ -8,15 +8,17 @@ sac = SiloAPIClient(CONFIG_PATH)
 
 class Silo:
     def __init__(self):
-        # Start Silo API Client
-        self.__silo = sac.get_json()
+        self.__silo = sac.get_json()        
         self.__silage = {}
 
     def __iter__(self):
         return SiloIterator(self.__silo)
     
-    def stat(self, path):
-        return next(filter(lambda s: s["filePath"] == path, self), None)
+    def stat(self, path, **args):
+        if args.get('index', None) == True:
+            return [i for i, n in enumerate(self) if n['filePath'] == path].pop()
+        else:
+            return next(filter(lambda s: s["filePath"] == path, self), None)
     
     def list(self, path='/'):
         # path = '/' の場合、次の正規表現でスラッシュが連続しないようにする
@@ -27,9 +29,9 @@ class Silo:
         return list(filter(lambda s: re.search(p, s['filePath']) is not None, self))
     
     # path と遡上階数を指定して silo に json を追加
-    # 0. フォルダ化: '/hoge/fuga' > '/hoge/fuga/'
-    # 1. 遡上:      '/hoge/fuga' > '/hoge/'
-    # 2. 2 つ遡上:   '/hoge/fuga' > '/'
+    # 0. 自身がフォルダ: '/hoge/fuga' > '/hoge/fuga/'
+    # 1. 遡上:          '/hoge/fuga' > '/hoge/'
+    # 2. 2 つ遡上:      '/hoge/fuga' > '/'
     def add(self, path, backtrack=0):
         def _backtrack(path, count):
             if count < 1:
@@ -51,27 +53,33 @@ class Silo:
             self, [])
 
     def haul(self, path, size, offset):
-        if path not in self.__silage:
-            self.__silage[path] = sac.get_file(path)
-        
-        print(f'### haul() - path: {path}, from {offset} to {offset + size} in {len(self.__silage[path])}')
-        return self.__silage[path][offset:offset + size]
-    
+        if self.stat(path).get('content', None) is None:
+            self.content(path)
+        return self.stat(path)['content'][offset:offset + size]
+
+    def content(self, path):
+        i = self.stat(path, index=True)
+        if self.__silo[i].get('content', None) is None:
+            self.__silo[i]['content'] = sac.get_file(path)
+            print(f'### content() - len: {len(self.__silo[i]['content'])}')
+        return 
+
     def empty(self, path):
-        if self.stat(path) is None:
+        crop = self.stat(path)
+        if crop is None:
             raise FileNotFoundError(f'File not found: {path}')
         else:
             sac.delete_file(path)
             self.__silo = list(filter(lambda s: s["filePath"] != path, self))
-            if path not in self.__silage:
-                del self.__silage[path]
             return 0
 
     def load(self, path, buf, offset):
-        if path not in self.__silage:
-            self.__silage[path] = b''
+        i = self.stat(path, index=True)
 
-        self.__silage[path] += buf
+        if self.__silo[i].get('content', None) is None:
+            self.__silo[i]['content'] = b''
+
+        self.__silo[i]['content'] += buf
         
         return len(buf)
     
@@ -90,7 +98,7 @@ class Silo:
             self.add(path, 2)
         
         elif caller == 'copy':
-            sac.write_file(path, self.__silage[path])
+            sac.write_file(path, kw.get('data'))
             while self.stat(path) is None:
                 self.add(path, 1)
         
@@ -103,11 +111,12 @@ class Silo:
         return 0
     
     def copy(self, path_old, path_new):
-        if self.__silage[path_old] is None:
-            self.__silage[path_old] = sac.get_file(path_old)
+        i_old = self.stat(path_old, index=True)
 
-        self.__silage[path_new] = self.__silage[path_old]
-        self.fill(path_new, caller='copy')
+        if self.__silo[i_old].get('content', None) is None:
+            self.content(path_old)
+
+        self.fill(path_new, caller = 'copy', data = self.__silo[i_old]['content'])
         return 0
 
 class SiloIterator:
