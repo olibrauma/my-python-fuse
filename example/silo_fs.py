@@ -59,7 +59,7 @@ class HelloFS(Fuse):
         elif crop is not None:
             # 対象のファイルを取得
 
-            print(f'### getattr() - path: {path}, file: {crop}')
+            print(f'### getattr() - path: {path}')
 
             # もし file がディレクトリなら
             if crop['isDirectory']:
@@ -149,7 +149,6 @@ class HelloFS(Fuse):
     # Called when 
     def create(self, path, mistery, mode):
         print(f'### create() - path: {path}, mistery: {mistery}, mode: {mode}')
-        silo.load(path, b'', 0)
         silo.fill(path, caller='create')
         return 0
 

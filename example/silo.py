@@ -88,12 +88,13 @@ class Silo:
         print(caller)
 
         if caller == 'create':
-            sac.write_file(path, self.__silage[path])
+            sac.write_file(path, b'')
             while self.stat(path) is None:
                 self.add(path, 1)
 
         elif caller == 'mkdir':
-            sac.write_file(path, self.__silage[path])
+            i = self.stat(path, index = True)
+            sac.write_file(path, self.__silo[i]['content'])
             time.sleep(2)
             self.add(path, 2)
         
@@ -102,11 +103,11 @@ class Silo:
             while self.stat(path) is None:
                 self.add(path, 1)
         
-        elif self.stat(path)['contentLength'] == len(self.__silage[path]):
+        elif self.stat(path)['contentLength'] == len(self.__silo[self.stat(path, index = True)]['content']):
             print(f'### fill() - do nothing for path: {path}')
             return 0
         else:
-            sac.write_file(path, self.__silage[path])
+            sac.write_file(path, self.__silo[self.stat(path, index = True)]['content'])
 
         return 0
     
