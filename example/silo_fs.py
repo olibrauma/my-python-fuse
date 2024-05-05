@@ -6,9 +6,7 @@
 #    See the file COPYING.
 #
 
-from functools import reduce
 import os, stat, errno
-import time
 
 # pull in some spaghetti to make this stuff work without fuse-py being installed
 try:
@@ -18,7 +16,6 @@ except ImportError:
 import fuse
 from fuse import Fuse
 from silo_api_client import SiloAPIClient
-import pathmaker
 from silo import Silo
 
 
@@ -144,13 +141,9 @@ class HelloFS(Fuse):
         if silo.stat(path_new) is not None:
             return -errno.EEXIST
 
-        # Get file at path_old and upload it to path_new
         silo.copy(path_old, path_new)
-
-        # delete file at path_ole
         silo.empty(path_old)
 
-        # Success
         return 0
 
     # Called when 
