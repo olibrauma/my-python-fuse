@@ -120,6 +120,9 @@ class SiloFS(Fuse):
         print(f'### flush({path}) - kw: {kw}')
         silo.fill(path, **kw)
 
+        while silo.stat(path)['contentLength'] == 0:
+            silo.sync(path)
+
         return 0
     
     def rename(self, path_old, path_new):
