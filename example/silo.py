@@ -49,13 +49,13 @@ class Silo:
             self, [])
 
     def haul(self, path, size, offset):
-        if self.stat(path).get('content', None) is None:
+        if self.stat(path).get('content') is None:
             self.content(path)
         return self.stat(path)['content'][offset:offset + size]
 
     def content(self, path):
         i = self.index(path)
-        if self.__silo[i].get('content', None) is None:
+        if self.__silo[i].get('content') is None:
             self.__silo[i]['content'] = sac.get_file(path)
             print(f'### content() - len: {len(self.__silo[i]['content'])}')
         return 
@@ -72,7 +72,7 @@ class Silo:
     def load(self, path, buf, offset):
         i = self.index(path)
 
-        if self.__silo[i].get('content', None) is None:
+        if self.__silo[i].get('content') is None:
             self.__silo[i]['content'] = b''
 
         self.__silo[i]['content'] += buf
@@ -80,9 +80,9 @@ class Silo:
         return len(buf)
     
     def fill(self, path, **kw):
-        caller = kw.get('caller', None)
+        caller = kw.get('caller')
         print(caller)
-
+  
         if caller == 'create':
             sac.write_file(path, b'')
             while self.stat(path) is None:
@@ -109,7 +109,7 @@ class Silo:
     def copy(self, path_old, path_new):
         i_old = self.index(path_old)
 
-        if self.__silo[i_old].get('content', None) is None:
+        if self.__silo[i_old].get('content') is None:
             self.content(path_old)
 
         self.fill(path_new, caller = 'copy', data = self.__silo[i_old]['content'])

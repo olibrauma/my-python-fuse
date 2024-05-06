@@ -6,6 +6,8 @@
 #    See the file COPYING.
 #
 
+import json
+import pathlib
 import os, stat, errno
 
 # pull in some spaghetti to make this stuff work without fuse-py being installed
@@ -40,9 +42,6 @@ class MyStat(fuse.Stat):
         self.st_ctime = 0
 
 class HelloFS(Fuse):
-    writing = b""
-    reading = {}
-
     def getattr(self, path):
         st = MyStat()
         print(f'### getattr() called. path: {path}')
@@ -138,7 +137,6 @@ class HelloFS(Fuse):
 
         return 0
 
-    # Called when 
     def create(self, path, mistery, mode):
         print(f'### create() - path: {path}, mistery: {mistery}, mode: {mode}')
         silo.fill(path, caller='create')
@@ -153,12 +151,7 @@ class HelloFS(Fuse):
         return 0
 
 def main():
-    usage="""
-Userspace hello example
-
-""" + Fuse.fusage
     server = HelloFS(version="%prog " + fuse.__version__,
-                     usage=usage,
                      dash_s_do='setsingle')
 
     server.parse(errex=1)
