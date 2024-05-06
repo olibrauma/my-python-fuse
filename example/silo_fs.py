@@ -116,13 +116,9 @@ class SiloFS(Fuse):
         print(f"### write() called! path: {path}, type(buf): {type(buf)}, offset: {offset}")
         return silo.load(path, buf, offset)
     
-    def flush(self, path, **kw):
-        print(f'### flush({path}) - kw: {kw}')
-        silo.fill(path, **kw)
-
-        while silo.stat(path)['contentLength'] == 0:
-            silo.sync(path)
-
+    def flush(self, path):
+        print(f'### flush({path})')
+        silo.fill(path)
         return 0
     
     def rename(self, path_old, path_new):
@@ -150,7 +146,6 @@ class SiloFS(Fuse):
         
         silo.fill(path, caller='mkdir')
 
-        # 成功した場合は 0 を返す
         return 0
 
     def rmdir(self, path):

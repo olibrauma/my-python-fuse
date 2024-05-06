@@ -44,9 +44,16 @@ class Silo:
         return 0
 
     def _unique(self):
-        return reduce(
-            lambda acc, x: acc + [x] if x['filePath'] not in [y['filePath'] for y in acc] else acc, 
-            self, [])
+        seen = {}
+        for crop in self:
+            if crop['filePath'] not in seen:
+                seen[crop['filePath']] = crop
+            else:
+                # 既に同じキーが見つかった場合、インデックスの大きい方で上書き
+                seen_crop = seen[crop['filePath']]
+                if self.__silo.index(crop) > self.__silo.index(seen_crop):
+                    seen[crop['filePath']] |= crop
+        return list(seen.values())
 
     def haul(self, path, size, offset):
         if self.stat(path).get('content') is None:
@@ -112,12 +119,14 @@ class Silo:
             while self.stat(path) is None:
                 self.sync(path)
         
-        elif self.stat(path)['contentLength'] == len(self.__silo[self.index(path)]['content']):
+        elif self.stat(path)['contentLength'] == len(self.stat(path)['content']):
             print(f'### fill() - do nothing for path: {path}')
             return 0
         else:
-            sac.write_file(path, self.__silo[self.index(path)]['content'])
-
+            sac.write_file(path, self.stat(path)['content'])
+            while self.stat(path)['contentLength'] == 0:
+                print(f'### fill() - [\'cL\']: {self.stat(path)['contentLength']}, len([\'c\']): {len(self.stat(path)['content'])}')
+                self.sync(path)
         return 0
     
     def copy(self, path_old, path_new):
