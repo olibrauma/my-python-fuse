@@ -7,7 +7,6 @@
 #
 
 import json
-import pathlib
 import os, stat, errno
 
 # pull in some spaghetti to make this stuff work without fuse-py being installed
@@ -94,14 +93,9 @@ class SiloFS(Fuse):
         return 0
 
     def read(self, path, size, offset):
-        # 存在するファイルなら読み込む
         if silo.stat(path) is not None:
-
-            # 対象のファイルをコンソールに表示
             print(f'### read() called (1)! path: {path}, size: {size}, offset: {offset}')
-            buf = silo.haul(path, size, offset)
-        
-        # 存在しないファイルは読み込まない
+            buf = silo.draw(path, size, offset)        
         else:
             buf = b''
         print(f'### read() called (2)! path: {path}, size: {size}, offset: {offset}')
@@ -114,20 +108,17 @@ class SiloFS(Fuse):
 
     def write(self, path, buf, offset):
         print(f"### write() called! path: {path}, type(buf): {type(buf)}, offset: {offset}")
-        return silo.load(path, buf, offset)
+        return silo.buffer(path, buf, offset)
     
     def flush(self, path):
         print(f'### flush({path})')
-        silo.fill(path)
+        silo.put(path)
         return 0
     
     def rename(self, path_old, path_new):
         print(f"### rename() called! path_old: {path_old}, path_new: {path_new}")
-        # Check if old path exists
         if silo.stat(path_old) is None:
             return -errno.ENOENT
-
-        # Check if new path already exists
         if silo.stat(path_new) is not None:
             return -errno.EEXIST
 
@@ -138,14 +129,14 @@ class SiloFS(Fuse):
 
     def create(self, path, mistery, mode):
         print(f'### create() - path: {path}, mistery: {mistery}, mode: {mode}')
-        silo.fill(path, caller='create')
+        silo.put(path)
         return 0
 
     def mkdir(self, path, mode):
         print(f"### mkdir() called! path_mod: {path}")
-        
-        silo.fill(path, caller='mkdir')
-
+        silo.put(path + '/.silo')
+        silo.scan(path)
+        silo.empty(path + '/.silo')
         return 0
 
     def rmdir(self, path):

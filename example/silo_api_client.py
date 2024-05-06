@@ -93,15 +93,14 @@ class SiloAPIClient:
             print(f"Error: {e}")
             return None
 
-    def delete_file(self, path, is_directory=False):
-        path_ = path + '/' if is_directory else path
-        url = self._build_url(path_)
-        print(f'### delete_file() called! path: {path_}, url: {url}')
+    def delete_file(self, path):
+        url = self._build_url(path)
+        print(f'### delete_file() called! path: {path}, url: {url}')
 
         try:
             response = requests.delete(url)
             if response.status_code == 204:
-                print(f'### delete_file() called! Path: {path_}, Status code: {response.status_code}')
+                print(f'### delete_file() called! Path: {path}, Status code: {response.status_code}')
                 return 0
             else:
                 return response.status_code

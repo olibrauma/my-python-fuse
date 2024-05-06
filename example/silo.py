@@ -17,7 +17,10 @@ class Silo:
         return next(filter(lambda s: s["filePath"] == path, self), None)
     
     def index(self, path):
-        return [i for i, n in enumerate(self) if n['filePath'] == path].pop()
+        try:
+            return [i for i, n in enumerate(self) if n['filePath'] == path].pop()
+        except IndexError:
+            return None
         
     def list(self, path='/'):
         # path = '/' の場合、次の正規表現でスラッシュが連続しないようにする
@@ -28,13 +31,13 @@ class Silo:
         
         # 対象のフォルダ以下のファイルを知らなければ取得して再抽出
         if len(list_) == 0:
-            self.sync(path + '/')
+            self.scan(path + '/')
             list_ = list(filter(lambda s: re.search(p, s['filePath']) is not None, self))
 
         return list_
 
     # path = '/hoge/fuga' > path_ = '/hoge/'
-    def sync(self, path):
+    def scan(self, path):
         path_list = path.split('/')
         path_list.pop()
         path_ = '/'.join(path_list) + '/'
@@ -45,17 +48,20 @@ class Silo:
 
     def _unique(self):
         seen = {}
+        # seen = {"path_1": {crop_1}, "path_2": {crop_2}, ...}
         for crop in self:
             if crop['filePath'] not in seen:
                 seen[crop['filePath']] = crop
             else:
-                # 既に同じキーが見つかった場合、インデックスの大きい方で上書き
+                # 既に同じキーがあれば createdTime の遅い方でマージ
                 seen_crop = seen[crop['filePath']]
-                if self.__silo.index(crop) > self.__silo.index(seen_crop):
-                    seen[crop['filePath']] |= crop
+                if crop['createdTime'] > seen_crop['createdTime']:
+                    seen[crop['filePath']] = seen_crop | crop
+                else:
+                    seen[crop['filePath']] = crop | seen_crop
         return list(seen.values())
 
-    def haul(self, path, size, offset):
+    def draw(self, path, size, offset):
         if self.stat(path).get('content') is None:
             self.content(path)
         return self.stat(path)['content'][offset:offset + size]
@@ -78,11 +84,9 @@ class Silo:
             del self.__silo[i]
         else:
             if self.stat(path + '/.silo') is not None:
-                sac.delete_file(path + '/.silo')
-                i = self.index(path + '/.silo')
-                del self.__silo[i]
+                self.empty(path + '/.silo')
 
-            sac.delete_file(path, is_directory=True)
+            sac.delete_file(path + '/')
             i = self.index(path)
             del self.__silo[i]
 
@@ -90,7 +94,7 @@ class Silo:
         print(f'### empty() - filePaths: {filePaths}')
         return 0
 
-    def load(self, path, buf, offset):
+    def buffer(self, path, buf, offset):
         i = self.index(path)
 
         if self.__silo[i].get('content') is None:
@@ -100,33 +104,26 @@ class Silo:
         
         return len(buf)
     
-    def fill(self, path, **kw):
-        caller = kw.get('caller')
-        print(caller)
-  
-        if caller == 'create':
-            sac.write_file(path, b'')
-            while self.stat(path) is None:
-                self.sync(path)
+    def put(self, path):
+        data = b''
+        blank_write = True # 空書き込みかどうか
 
-        elif caller == 'mkdir': # path は作りたいフォルダ
-            sac.write_file(path + '/.silo', b'Silo blank file')
-            while self.stat(path) is None:
-                self.sync(path)
+        crop = self.stat(path)
+        if crop is not None:
+            if crop.get('content') is not None:
+                data = crop.get('content')
+                blank_write = False
+        print(f'### put() - path: {path}, len(data): {len(data)}')
         
-        elif caller == 'copy':
-            sac.write_file(path, kw.get('data'))
-            while self.stat(path) is None:
-                self.sync(path)
+        sac.write_file(path, data)
         
-        elif self.stat(path)['contentLength'] == len(self.stat(path)['content']):
-            print(f'### fill() - do nothing for path: {path}')
-            return 0
+        if blank_write:
+            while self.stat(path) is None:
+                self.scan(path)
         else:
-            sac.write_file(path, self.stat(path)['content'])
-            while self.stat(path)['contentLength'] == 0:
-                print(f'### fill() - [\'cL\']: {self.stat(path)['contentLength']}, len([\'c\']): {len(self.stat(path)['content'])}')
-                self.sync(path)
+            i = self.index(path)
+            while self.__silo[i].get('contentLength') == 0:
+                self.scan(path)
         return 0
     
     def copy(self, path_old, path_new):
@@ -135,7 +132,9 @@ class Silo:
         if self.__silo[i_old].get('content') is None:
             self.content(path_old)
 
-        self.fill(path_new, caller = 'copy', data = self.__silo[i_old]['content'])
+        self.put(path_new)
+        self.buffer(path_new, self.__silo[i_old]['content'], 0)
+        self.put(path_new)
         return 0
 
 class SiloIterator:
