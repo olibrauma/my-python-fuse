@@ -41,7 +41,7 @@ class MyStat(fuse.Stat):
         self.st_mtime = 0
         self.st_ctime = 0
 
-class HelloFS(Fuse):
+class SiloFS(Fuse):
     def getattr(self, path):
         st = MyStat()
         print(f'### getattr() called. path: {path}')
@@ -150,8 +150,21 @@ class HelloFS(Fuse):
         # 成功した場合は 0 を返す
         return 0
 
+    def rmdir(self, path):
+        crop = silo.stat(path)
+
+        if crop is None:
+            return -errno.ENOENT
+        elif not crop['isDirectory']:
+            return -errno.ENOTDIR
+        elif len(silo.list(path)) > 0:
+            return -errno.ENOTEMPTY
+        else:
+            return silo.empty(path)
+
+
 def main():
-    server = HelloFS(version="%prog " + fuse.__version__,
+    server = SiloFS(version="%prog " + fuse.__version__,
                      dash_s_do='setsingle')
 
     server.parse(errex=1)

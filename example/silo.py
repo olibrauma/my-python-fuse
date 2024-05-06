@@ -62,12 +62,26 @@ class Silo:
 
     def empty(self, path):
         crop = self.stat(path)
+        
         if crop is None:
-            raise FileNotFoundError(f'File not found: {path}')
-        else:
-            sac.delete_file(path)
-            self.__silo = list(filter(lambda s: s["filePath"] != path, self))
             return 0
+        elif not crop['isDirectory']:
+            sac.delete_file(path)
+            i = self.index(path)
+            del self.__silo[i]
+        else:
+            if self.stat(path + '/.silo') is not None:
+                sac.delete_file(path + '/.silo')
+                i = self.index(path + '/.silo')
+                del self.__silo[i]
+
+            sac.delete_file(path, is_directory=True)
+            i = self.index(path)
+            del self.__silo[i]
+
+        filePaths = list(map(lambda s: s['filePath'], self))
+        print(f'### empty() - filePaths: {filePaths}')
+        return 0
 
     def load(self, path, buf, offset):
         i = self.index(path)
