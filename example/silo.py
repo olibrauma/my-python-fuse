@@ -18,10 +18,8 @@ class Silo:
         return next(filter(lambda s: s["filePath"] == path, self), None)
     
     def index(self, path):
-        try:
-            return [i for i, n in enumerate(self) if n['filePath'] == path].pop()
-        except IndexError:
-            return None
+        list_ = list(filter(lambda x: x[1]['filePath'] == path, enumerate(self)))
+        return next(map(lambda x: x[0], list_), None)
         
     def list(self, path='/'):
         # path = '/' の場合、次の正規表現でスラッシュが連続しないようにする
