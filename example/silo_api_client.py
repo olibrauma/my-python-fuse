@@ -5,65 +5,72 @@ import urllib.parse
 import magic
 
 class SiloAPIClient:
-    def __init__(self, config_path):
-        config_file = pathlib.Path(config_path).expanduser()
+    __endpoint = None
+    __endpoint_set = False
+    __config = None
 
-        # ファイルを読み込む
-        try:
-            with open(config_file, "r") as f:
-                self.config = json.load(f)
-        except FileNotFoundError:
-            print(f"Silo 設定ファイルが見つかりません: {config_file}")
-            exit(1)
+    @classmethod
+    def set_endpoint(cls, config_path):
+        if not cls.__endpoint_set:
+            config_file = pathlib.Path(config_path).expanduser()
 
-        # "endpoint" キーの値を取得
-        if self.config.get("endpoint") is None:
-            print("Silo 設定ファイルに 'endpoint' キーが見つかりません")
-            exit(1)
+            try:
+                with open(config_file, "r") as f:
+                    cls.__config = json.load(f)
+            except FileNotFoundError:
+                print(f"Silo 設定ファイルが見つかりません: {config_file}")
+                exit(1)
+
+            if cls.__config.get("endpoint") is None:
+                print("Silo 設定ファイルに 'endpoint' キーが見つかりません")
+                exit(1)
+            else:
+                cls.__endpoint = cls.__config.get("endpoint")
+                cls.__endpoint_set = True
         else:
-            self.endpoint = self.config.get("endpoint")
+            print("Class variable has already been set and cannot be changed.")
 
-
-    def _build_url(self, path):
-        # path の先頭の '/' を削除
+    @classmethod
+    def _build_url(cls, path):
         path = path.lstrip('/')
-        return f"{self.endpoint}{path}"
+        return f"{cls.__endpoint}{path}"
 
-    def _format_raw_json(self, json):
+    @classmethod
+    def _format_raw_json(cls, json_data):
         result = []
-        for f in json:
-            # 'filePath' 要素の先頭 6 字を削除
+        for f in json_data:
             f['filePath'] = f['filePath'][6:]
-            
-            # dir の 'filePath' と 'filename' の末尾 '/' を削除
+
             if f['isDirectory']:
                 f['filePath'] = f['filePath'][:-1]
                 f['filename'] = f['filename'][:-1]
-            
+
             result.append(f)
-        
+
         return result
 
-    def _decode_percent(self, obj):
+    @classmethod
+    def _decode_percent(cls, obj):
         if isinstance(obj, str):
             return urllib.parse.unquote(obj)
         elif isinstance(obj, list):
-            return [self._decode_percent(item) for item in obj]
+            return [cls._decode_percent(item) for item in obj]
         elif isinstance(obj, dict):
-            return {key: self._decode_percent(value) for key, value in obj.items()}
+            return {key: cls._decode_percent(value) for key, value in obj.items()}
         else:
             return obj
-  
-    def get_json(self, path='/'):
-        url = self._build_url(path)
+
+    @classmethod
+    def get_json(cls, path='/'):
+        url = cls._build_url(path)
         print(f'### get_json() called! path: {path}, url: {url}')
 
         try:
             response = requests.get(url)
             if response.status_code == 200:
                 files_raw = json.loads(response.text)
-                files_fmt = self._format_raw_json(files_raw)
-                files = self._decode_percent(files_fmt)
+                files_fmt = cls._format_raw_json(files_raw)
+                files = cls._decode_percent(files_fmt)
 
                 print(f'### get_json() called! Response is {files}')
                 return files
@@ -74,10 +81,11 @@ class SiloAPIClient:
             print(f"Error: {e}")
             return None
 
-    def get_file(self, path, headers_wanted=False):
-        url = self._build_url(path)
+    @classmethod
+    def get_file(cls, path, headers_wanted=False):
+        url = cls._build_url(path)
         print(f'### get_file() called! path: {path}, url: {url}')
-        
+
         try:
             response = requests.get(url)
             if response.status_code == 200:
@@ -93,8 +101,9 @@ class SiloAPIClient:
             print(f"Error: {e}")
             return None
 
-    def delete_file(self, path):
-        url = self._build_url(path)
+    @classmethod
+    def delete_file(cls, path):
+        url = cls._build_url(path)
         print(f'### delete_file() called! path: {path}, url: {url}')
 
         try:
@@ -108,8 +117,9 @@ class SiloAPIClient:
             print(f"Error: {e}")
             return None
 
-    def write_file(self, path, data):
-        url = self._build_url(path)
+    @classmethod
+    def write_file(cls, path, data):
+        url = cls._build_url(path)
         print(f'### write_file() called! Path: {url}, len(data): {len(data)}')
 
         magic_ = magic.detect_from_content(data)

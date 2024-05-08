@@ -1,13 +1,11 @@
-from functools import reduce
-import time
-from silo_api_client import SiloAPIClient
+from silo_api_client import SiloAPIClient as sac
 import re
 
 CONFIG_PATH = '~/.config/silo/config.json'
-sac = SiloAPIClient(CONFIG_PATH)
 
 class Silo:
     def __init__(self):
+        sac.set_endpoint(CONFIG_PATH)
         self.__silo = []
         self.scan()
 
@@ -26,9 +24,13 @@ class Silo:
         path_ = path if path != '/' else ''
         # '{path}/.silo' 以外の '{path}/****' を抽出する
         p = rf"^{path_}/(?!.*\.silo$)"
-        filter_ = filter(lambda s: re.search(p, s['filePath']) is not None, self)
- 
-        return list(filter_)
+        list_ = list(filter(lambda s: re.search(p, s['filePath']) is not None, self))
+        
+        # 対象のフォルダ以下のファイルを知らなければ取得して再抽出
+        if len(list_) == 0:
+            self.scan(path + '/')
+            list_ = list(filter(lambda s: re.search(p, s['filePath']) is not None, self))
+        return list_
 
     # path = '/hoge/fuga' > path_ = '/hoge/'
     def scan(self, path='/'):
@@ -71,17 +73,13 @@ class Silo:
         
         if crop is None:
             return 0
-        elif not crop['isDirectory']:
-            sac.delete_file(path)
-            i = self.index(path)
-            del self.__silo[i]
-        else:
-            if self.stat(path + '/.silo') is not None:
-                self.empty(path + '/.silo')
-
+        elif crop['isDirectory']:
             sac.delete_file(path + '/')
-            i = self.index(path)
-            del self.__silo[i]
+        else:
+            sac.delete_file(path)
+
+        i = self.index(path)
+        del self.__silo[i]
 
         filePaths = list(map(lambda s: s['filePath'], self))
         print(f'### empty() - filePaths: {filePaths}')
@@ -99,18 +97,15 @@ class Silo:
     
     def put(self, path):
         data = b''
-        blank_write = True # 空書き込みかどうか
-
         crop = self.stat(path)
         if crop is not None:
             if crop.get('content') is not None:
                 data = crop.get('content')
-                blank_write = False
         print(f'### put() - path: {path}, len(data): {len(data)}')
         
         sac.write_file(path, data)
         
-        if blank_write:
+        if len(data) == 0:
             while self.stat(path) is None:
                 self.scan(path)
         else:

@@ -6,7 +6,6 @@
 #    See the file COPYING.
 #
 
-import json
 import os, stat, errno
 
 # pull in some spaghetti to make this stuff work without fuse-py being installed
