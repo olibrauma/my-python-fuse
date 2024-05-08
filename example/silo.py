@@ -96,11 +96,13 @@ class Silo:
         return len(buf)
     
     def put(self, path):
-        data = b''
         crop = self.stat(path)
+
         if crop is not None:
             if crop.get('content') is not None:
                 data = crop.get('content')
+        else:
+            data = b''
         print(f'### put() - path: {path}, len(data): {len(data)}')
         
         sac.write_file(path, data)

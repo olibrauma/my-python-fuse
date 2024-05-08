@@ -58,9 +58,9 @@ class SiloFS(Fuse):
 
             # もし file がディレクトリなら
             if crop['isDirectory']:
-                has_file = (len(silo.list(path)) >= 1)
+                has_crop = (len(silo.list(path)) > 0)
                 
-                print(f'### {path} is a directory. hasFile: {has_file}')
+                print(f'### {path} is a directory. hasFile: {has_crop}')
                 st.st_mode = stat.S_IFDIR | 0o755
                 st.st_nlink = 2
                 st.st_mtime = float(crop['lastModifiedTime']) / 1000
@@ -149,7 +149,6 @@ class SiloFS(Fuse):
             return -errno.ENOTEMPTY
         else:
             return silo.empty(path)
-
 
 def main():
     server = SiloFS(version="%prog " + fuse.__version__,

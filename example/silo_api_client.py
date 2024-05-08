@@ -7,7 +7,6 @@ import magic
 class SiloAPIClient:
     __endpoint = None
     __endpoint_set = False
-    __config = None
 
     @classmethod
     def set_endpoint(cls, config_path):
@@ -16,16 +15,16 @@ class SiloAPIClient:
 
             try:
                 with open(config_file, "r") as f:
-                    cls.__config = json.load(f)
+                    config = json.load(f)
             except FileNotFoundError:
                 print(f"Silo 設定ファイルが見つかりません: {config_file}")
                 exit(1)
 
-            if cls.__config.get("endpoint") is None:
+            if config.get("endpoint") is None:
                 print("Silo 設定ファイルに 'endpoint' キーが見つかりません")
                 exit(1)
             else:
-                cls.__endpoint = cls.__config.get("endpoint")
+                cls.__endpoint = config.get("endpoint")
                 cls.__endpoint_set = True
         else:
             print("Class variable has already been set and cannot be changed.")
