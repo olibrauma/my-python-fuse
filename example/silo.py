@@ -8,7 +8,8 @@ sac = SiloAPIClient(CONFIG_PATH)
 
 class Silo:
     def __init__(self):
-        self.__silo = sac.get_json()        
+        self.__silo = []
+        self.scan()
 
     def __iter__(self):
         return SiloIterator(self.__silo)
@@ -37,7 +38,7 @@ class Silo:
         return list_
 
     # path = '/hoge/fuga' > path_ = '/hoge/'
-    def scan(self, path):
+    def scan(self, path='/'):
         path_list = path.split('/')
         path_list.pop()
         path_ = '/'.join(path_list) + '/'
@@ -62,8 +63,7 @@ class Silo:
         return list(seen.values())
 
     def draw(self, path, size, offset):
-        if self.stat(path).get('content') is None:
-            self.content(path)
+        self.content(path)
         return self.stat(path)['content'][offset:offset + size]
 
     def content(self, path):
@@ -121,17 +121,14 @@ class Silo:
             while self.stat(path) is None:
                 self.scan(path)
         else:
-            i = self.index(path)
-            while self.__silo[i].get('contentLength') == 0:
+            while self.stat(path)['contentLength'] == 0:
                 self.scan(path)
         return 0
     
     def copy(self, path_old, path_new):
+        self.content(path_old)
         i_old = self.index(path_old)
-
-        if self.__silo[i_old].get('content') is None:
-            self.content(path_old)
-
+        
         self.put(path_new)
         self.buffer(path_new, self.__silo[i_old]['content'], 0)
         self.put(path_new)
