@@ -26,14 +26,9 @@ class Silo:
         path_ = path if path != '/' else ''
         # '{path}/.silo' 以外の '{path}/****' を抽出する
         p = rf"^{path_}/(?!.*\.silo$)"
-        list_ = list(filter(lambda s: re.search(p, s['filePath']) is not None, self))
-        
-        # 対象のフォルダ以下のファイルを知らなければ取得して再抽出
-        if len(list_) == 0:
-            self.scan(path + '/')
-            list_ = list(filter(lambda s: re.search(p, s['filePath']) is not None, self))
-
-        return list_
+        filter_ = filter(lambda s: re.search(p, s['filePath']) is not None, self)
+ 
+        return list(filter_)
 
     # path = '/hoge/fuga' > path_ = '/hoge/'
     def scan(self, path='/'):
