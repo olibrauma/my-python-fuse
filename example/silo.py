@@ -65,7 +65,7 @@ class Silo:
         i = self.index(path)
         if self.__silo[i].get('content') is None:
             self.__silo[i]['content'] = sac.get_file(path)
-            print(f'### content() - len: {len(self.__silo[i]['content'])}')
+            # print(f'### content() - len: {len(self.__silo[i]['content'])}') # Raspberry Pi は print() 内の `'content'` を解釈できない
         return 
 
     def empty(self, path):
